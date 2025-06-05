@@ -127,7 +127,7 @@ class Block(nn.Module):
         x = x + self.drop_path(self.mlp(self.ln2(x)))
         return x
 
-
+# original ConvTransBlock
 class ConvTransBlock(nn.Module):
     def __init__(self, conv_dim, trans_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
         """ SwinTransformer and Conv Block
@@ -179,36 +179,182 @@ class ConvTransBlock(nn.Module):
 
 
 class ConvNSTBBlock(nn.Module):
-    def __init__(self, conv_dim, trans_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
-        """ SwinTransformer and Conv Block
+    """
+    ConvNSTBBlock:
+      - Splits input channels into a convolutional branch and an NSTB branch.
+      - Conv branch: two 3×3 convs + ReLU + residual.
+      - NSTB branch: flatten → NSTB (N-Gram Swin) → reshape.
+      - Fuse: concatenate both outputs, apply 1×1 conv, then add a residual from x.
+    """
+
+    def __init__(
+        self,
+        conv_dim: int,
+        trans_dim: int,
+        head_dim: int,
+        window_size: int,
+        drop_path: float,
+        block_type: str = 'W',   # either 'W' or 'SW'
+        input_resolution: int = 256
+    ):
+        super(ConvNSTBBlock, self).__init__()
+        self.conv_dim = conv_dim
+        self.trans_dim = trans_dim
+        self.window_size = window_size
+        self.drop_path = drop_path
+        self.type = block_type
+        self.input_resolution = input_resolution
+
+        # If resolution ≤ window_size, force windowed (no shift)
+        if self.input_resolution <= self.window_size:
+            self.type = 'W'
+
+        # --- 1) First 1×1 conv: mix all incoming channels, then we will split ---
+        self.conv1_1 = nn.Conv2d(
+            in_channels=self.conv_dim + self.trans_dim,
+            out_channels=self.conv_dim + self.trans_dim,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True
+        )
+
+        # --- 2) Convolutional branch: two 3×3 convs + ReLU, with a residual ---
+        self.conv_block = nn.Sequential(
+            nn.Conv2d(self.conv_dim, self.conv_dim, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.ReLU(True),
+            nn.Conv2d(self.conv_dim, self.conv_dim, kernel_size=3, stride=1, padding=1, bias=False)
+        )
+
+        # --- 3) NSTB branch: the N-Gram Swin Transformer block ---
+        # We pass in (dim=trans_dim) and compute how many patches fit in each direction.
+        self.nstb_block = NSTB(
+            dim=self.trans_dim,
+            training_num_patches=(
+                self.input_resolution // self.window_size,
+                self.input_resolution // self.window_size
+            ),
+            ngram=2,                              # you can tune this (e.g. 2 or 3)
+            num_heads=self.trans_dim // head_dim, # total attention heads
+            window_size=self.window_size,
+            shift_size=self.window_size // 2,
+            mlp_ratio=2.0,
+            qkv_bias=True,
+            drop=0.0,
+            attn_drop=0.0,
+            drop_path=self.drop_path,
+            act_layer=nn.GELU,
+            norm_layer=nn.LayerNorm
+        )
+
+        # --- 4) Second 1×1 conv: fuse concatenated conv-out + nstb-out back into (conv_dim+trans_dim) channels ---
+        self.conv1_2 = nn.Conv2d(
+            in_channels=self.conv_dim + self.trans_dim,
+            out_channels=self.conv_dim + self.trans_dim,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        super(ConvTransNSTBBlock, self).__init__()
+        x: shape (B, conv_dim+trans_dim, H, W)
+        Returns: (B, conv_dim+trans_dim, H, W), after fusing conv & NSTB branches + residual
+        """
+
+        # --- A) Mix & split ---
+        mixed = self.conv1_1(x)
+        # Now split into two chunks: conv_x ∈ (B, conv_dim, H, W) and trans_x ∈ (B, trans_dim, H, W)
+        conv_x, trans_x = torch.split(mixed, [self.conv_dim, self.trans_dim], dim=1)
+
+        # --- B) Convolutional branch ---
+        # 1) Two 3×3 convs + ReLU
+        conv_intermediate = self.conv_block(conv_x)            # → (B, conv_dim, H, W)
+        # 2) Residual add inside conv branch
+        conv_out = conv_x + conv_intermediate                   # → (B, conv_dim, H, W)
+
+        # --- C) NSTB branch ---
+        B, C_t, H, W = trans_x.shape
+        # 1) Flatten spatial dims into a sequence of length H*W
+        nstb_in = rearrange(trans_x, 'b c h w -> b (h w) c')   # → (B, H*W, trans_dim)
+        # 2) Run through NSTB: returns (inp, out, num_patches). We only need the “out” sequence.
+        _, nstb_out_flat, _ = self.nstb_block(nstb_in, (H, W))
+        # 3) Reshape back to spatial feature map
+        nstb_out = rearrange(nstb_out_flat, 'b (h w) c -> b c h w', h=H, w=W)
+        #    → (B, trans_dim, H, W)
+
+        # --- D) Fuse conv_out + nstb_out ---
+        fused = torch.cat((conv_out, nstb_out), dim=1)          # → (B, conv_dim+trans_dim, H, W)
+        merged = self.conv1_2(fused)                            # → (B, conv_dim+trans_dim, H, W)
+
+        # --- E) Final residual from original x ---
+        out = x + merged                                         # → (B, conv_dim+trans_dim, H, W)
+        return out
+class TransNSTBBlock(nn.Module):
+    """
+    TransNSTBBlock:
+      - Splits input channels via a 1×1 conv, keeps only the transformer slice.
+      - Runs a Swin Transformer block on one copy of that slice.
+      - Runs an NSTB (N-Gram Swin) block on another copy of that slice.
+      - Concatenates Swin-out and NSTB-out, fuses via 1×1 conv, then adds original input as a residual.
+    """
+
+    def __init__(
+        self,
+        conv_dim: int,
+        trans_dim: int,
+        head_dim: int,
+        window_size: int,
+        drop_path: float,
+        block_type: str = 'W',    # either 'W' or 'SW'
+        input_resolution: int = 256
+    ):
+        super(TransNSTBBlock, self).__init__()
+
         self.conv_dim = conv_dim
         self.trans_dim = trans_dim
         self.head_dim = head_dim
         self.window_size = window_size
         self.drop_path = drop_path
-        self.type = type
+        self.type = block_type
         self.input_resolution = input_resolution
 
         assert self.type in ['W', 'SW']
+        # If the feature map is smaller than one window, force “W” (no shift)
         if self.input_resolution <= self.window_size:
             self.type = 'W'
 
-        # self.trans_block = Block(self.trans_dim, self.trans_dim, self.head_dim, self.window_size, self.drop_path, self.type, self.input_resolution)
-        # self.conv1_1 = nn.Conv2d(self.conv_dim+self.trans_dim, self.conv_dim+self.trans_dim, 1, 1, 0, bias=True)
-        # self.conv1_2 = nn.Conv2d(self.conv_dim + 2 * self.trans_dim, self.conv_dim + self.trans_dim, 1, 1, 0, bias=True)
+        # --- 1) First 1×1 conv: mix all incoming channels (conv_dim + trans_dim) → (conv_dim + trans_dim) ---
+        self.conv1_1 = nn.Conv2d(
+            in_channels=self.conv_dim + self.trans_dim,
+            out_channels=self.conv_dim + self.trans_dim,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True
+        )
 
-        self.conv_block = nn.Sequential(
-                nn.Conv2d(self.conv_dim, self.conv_dim, 3, 1, 1, bias=False),
-                nn.ReLU(True),
-                nn.Conv2d(self.conv_dim, self.conv_dim, 3, 1, 1, bias=False)
-                )
-        
+        # --- 2) Swin Transformer block path (on trans_dim channels) ---
+        #    We create one Swin block that expects input shape (B, H, W, trans_dim)
+        self.trans_block = Block(
+            self.trans_dim,        # input_dim = output_dim = trans_dim
+            self.trans_dim,
+            self.head_dim,
+            self.window_size,
+            self.drop_path,
+            self.type,
+            self.input_resolution
+        )
+
+        # --- 3) NSTB (N-Gram Swin Transformer) block path ---
         self.nstb_block = NSTB(
             dim=self.trans_dim,
-            training_num_patches=(self.input_resolution // self.window_size, self.input_resolution // self.window_size),
-            ngram=2,  # example value
+            training_num_patches=(
+                self.input_resolution // self.window_size,
+                self.input_resolution // self.window_size
+            ),
+            ngram=2,                              # you can adjust n-gram size as needed
             num_heads=self.trans_dim // self.head_dim,
             window_size=self.window_size,
             shift_size=self.window_size // 2,
@@ -221,69 +367,128 @@ class ConvNSTBBlock(nn.Module):
             norm_layer=nn.LayerNorm
         )
 
+        # --- 4) Second 1×1 conv: fuse concatenated Swin-out + NSTB-out → (conv_dim + trans_dim) channels ---
+        #    Note: We concatenate two trans_dim outputs, so conv1_2’s input channels = 2*trans_dim,
+        #    and we output back to (conv_dim + trans_dim).
+        self.conv1_2 = nn.Conv2d(
+            in_channels=2 * self.trans_dim,
+            out_channels=self.conv_dim + self.trans_dim,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True
+        )
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        x: (B, conv_dim + trans_dim, H, W)
+        Returns: (B, conv_dim + trans_dim, H, W)
+        """
 
-    def forward(self, x):
-       
-        # 1) Split input into convolutional and transformer components (raw transformer path saved for NSTB)
-        conv_x, trans_x = torch.split(self.conv1_1(x), (self.conv_dim, self.trans_dim), dim=1)
-        raw_trans = trans_x  # keep unmodified trans_x for parallel NSTB branch
+        # --- A) Mix channels via 1×1 conv, then split ---
+        mixed = self.conv1_1(x)
+        # We only care about the “trans_dim” slice. The conv_dim slice is discarded.
+        _, trans_x = torch.split(mixed, [self.conv_dim, self.trans_dim], dim=1)
+        # Keep a copy of raw trans_x for NSTB
+        raw_trans = trans_x  # ∈ (B, trans_dim, H, W)
 
-        # 2) Process convolutional component (Conv Block)
-        conv_x = self.conv_block(conv_x) + conv_x
+        # --- B) Swin Transformer branch on trans_x ---
+        # 1) Rearrange (B, C, H, W) → (B, H, W, C)
+        trans_x_permuted = rearrange(trans_x, 'b c h w -> b h w c')
+        # 2) Apply Swin block
+        swin_out_permuted = self.trans_block(trans_x_permuted)  # ∈ (B, H, W, trans_dim)
+        # 3) Rearrange back to (B, C, H, W)
+        swin_out = rearrange(swin_out_permuted, 'b h w c -> b c h w')  # ∈ (B, trans_dim, H, W)
 
-        # 3) Process transformer component (Swin Transformer Block)
-        trans_x = Rearrange('b c h w -> b h w c')(trans_x)  # rearrange for Swin
-        trans_x = self.trans_block(trans_x)                 # apply Swin block
-        trans_x = Rearrange('b h w c -> b c h w')(trans_x)  # back to NCHW
-
-        # 4) Process NSTB branch and fuse three branches
-        B, C, H, W = raw_trans.shape
-        # Prepare input for NSTB: flatten spatial dims (use raw trans features)
+        # --- C) NSTB branch on raw_trans ---
+        B, C_t, H, W = raw_trans.shape
+        # 1) Flatten spatial dims: (B, C_t, H, W) → (B, H*W, C_t)
         nstb_in = rearrange(raw_trans, 'b c h w -> b (h w) c')
-        # Run NSTB: returns (input, output, num_patches)
+        # 2) Apply NSTB: returns (inp, out_flat, num_patches). We take out_flat.
         _, nstb_out_flat, _ = self.nstb_block(nstb_in, (H, W))
-        # Reshape NSTB output back to feature map
-        nstb_out = rearrange(nstb_out_flat, 'b (h w) c -> b c h w', h=H, w=W)
-        # Fuse conv, Swin-trans, and NSTB branches
-        res = self.conv1_2(torch.cat((conv_x, trans_x, nstb_out), dim=1))
+        # 3) Reshape (B, H*W, C_t) → (B, C_t, H, W)
+        nstb_out = rearrange(nstb_out_flat, 'b (h w) c -> b c h w', h=H, w=W)  # ∈ (B, trans_dim, H, W)
 
-        # 5) Add residual connection
-        x = x + res
+        # --- D) Fuse Swin‐out and NSTB‐out, then add a residual from x ---
+        # 1) Concatenate along channel axis: (B, 2*trans_dim, H, W)
+        fused_trans = torch.cat((swin_out, nstb_out), dim=1)
+        # 2) 1×1 conv to mix them + project back to (conv_dim + trans_dim) channels
+        merged = self.conv1_2(fused_trans)  # ∈ (B, conv_dim + trans_dim, H, W)
+        # 3) Residual add: add original input x
+        out = x + merged                    # ∈ (B, conv_dim + trans_dim, H, W)
 
-        return x
+        return out
 
 class ConvTransNSTBBlock(nn.Module):
-    def __init__(self, conv_dim, trans_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
-        """ SwinTransformer and Conv Block
-        """
+    """
+    ConvTransNSTBBlock:
+      - Splits input into three parallel branches: Conv, Swin-Transformer, and NSTB.
+      - Conv branch: two 3×3 convs + ReLU + residual.
+      - Swin branch: layer-norm → windowed self-attention → MLP → residual (inside Swin Block).
+      - NSTB branch: flatten → N-Gram Swin Transformer → reshape → no internal conv.
+      - Fuse: concatenate all three outputs, apply 1×1 conv to mix, then add original input as a residual.
+    """
+
+    def __init__(
+        self,
+        conv_dim: int,
+        trans_dim: int,
+        head_dim: int,
+        window_size: int,
+        drop_path: float,
+        block_type: str = 'W',    # 'W' for window, 'SW' for shifted window
+        input_resolution: int = 256
+    ):
         super(ConvTransNSTBBlock, self).__init__()
+
         self.conv_dim = conv_dim
         self.trans_dim = trans_dim
         self.head_dim = head_dim
         self.window_size = window_size
         self.drop_path = drop_path
-        self.type = type
+        self.type = block_type
         self.input_resolution = input_resolution
 
         assert self.type in ['W', 'SW']
         if self.input_resolution <= self.window_size:
             self.type = 'W'
 
-        self.trans_block = Block(self.trans_dim, self.trans_dim, self.head_dim, self.window_size, self.drop_path, self.type, self.input_resolution)
-        self.conv1_1 = nn.Conv2d(self.conv_dim+self.trans_dim, self.conv_dim+self.trans_dim, 1, 1, 0, bias=True)
-        self.conv1_2 = nn.Conv2d(self.conv_dim + 2 * self.trans_dim, self.conv_dim + self.trans_dim, 1, 1, 0, bias=True)
+        # 1) First 1×1 conv: mix all incoming channels (conv_dim + trans_dim) → (conv_dim + trans_dim)
+        self.conv1_1 = nn.Conv2d(
+            in_channels=self.conv_dim + self.trans_dim,
+            out_channels=self.conv_dim + self.trans_dim,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True
+        )
 
+        # 2) Convolutional branch: two 3×3 convs + ReLU, with a residual
         self.conv_block = nn.Sequential(
-                nn.Conv2d(self.conv_dim, self.conv_dim, 3, 1, 1, bias=False),
-                nn.ReLU(True),
-                nn.Conv2d(self.conv_dim, self.conv_dim, 3, 1, 1, bias=False)
-                )
-        
+            nn.Conv2d(self.conv_dim, self.conv_dim, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.ReLU(True),
+            nn.Conv2d(self.conv_dim, self.conv_dim, kernel_size=3, stride=1, padding=1, bias=False)
+        )
+
+        # 3) Swin Transformer block (on trans_dim channels)
+        self.trans_block = Block(
+            input_dim=self.trans_dim,
+            output_dim=self.trans_dim,
+            head_dim=self.head_dim,
+            window_size=self.window_size,
+            drop_path=self.drop_path,
+            type=self.type,
+            input_resolution=self.input_resolution
+        )
+
+        # 4) NSTB block (N-Gram Swin Transformer)      
         self.nstb_block = NSTB(
             dim=self.trans_dim,
-            training_num_patches=(self.input_resolution // self.window_size, self.input_resolution // self.window_size),
-            ngram=2,  # example value
+            training_num_patches=(
+                self.input_resolution // self.window_size,
+                self.input_resolution // self.window_size
+            ),
+            ngram=2,                              # adjust n-gram size as needed
             num_heads=self.trans_dim // self.head_dim,
             window_size=self.window_size,
             shift_size=self.window_size // 2,
@@ -296,123 +501,58 @@ class ConvTransNSTBBlock(nn.Module):
             norm_layer=nn.LayerNorm
         )
 
+        # 5) Second 1×1 conv: fuse concatenated outputs (conv_out, swin_out, nstb_out) → (conv_dim + trans_dim)
+        #    concatenated channel count = conv_dim + trans_dim + trans_dim = conv_dim + 2*trans_dim
+        self.conv1_2 = nn.Conv2d(
+            in_channels=self.conv_dim + 2 * self.trans_dim,
+            out_channels=self.conv_dim + self.trans_dim,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True
+        )
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        x: (B, conv_dim + trans_dim, H, W)
+        returns: (B, conv_dim + trans_dim, H, W)
+        """
 
-    def forward(self, x):
-       
-        # 1) Split input into convolutional and transformer components (raw transformer path saved for NSTB)
-        conv_x, trans_x = torch.split(self.conv1_1(x), (self.conv_dim, self.trans_dim), dim=1)
-        raw_trans = trans_x  # keep unmodified trans_x for parallel NSTB branch
+        # --- A) Mix & split into conv_x and trans_x ---
+        mixed = self.conv1_1(x)
+        conv_x, trans_x = torch.split(mixed, [self.conv_dim, self.trans_dim], dim=1)
+        raw_trans = trans_x  # save for NSTB branch
 
-        # 2) Process convolutional component (Conv Block)
-        conv_x = self.conv_block(conv_x) + conv_x
+        # --- B) Convolutional branch ---
+        # 1) two 3×3 convs + ReLU
+        conv_intermediate = self.conv_block(conv_x)               # (B, conv_dim, H, W)
+        # 2) add residual from conv_x
+        conv_out = conv_x + conv_intermediate                      # (B, conv_dim, H, W)
 
-        # 3) Process transformer component (Swin Transformer Block)
-        trans_x = Rearrange('b c h w -> b h w c')(trans_x)  # rearrange for Swin
-        trans_x = self.trans_block(trans_x)                 # apply Swin block
-        trans_x = Rearrange('b h w c -> b c h w')(trans_x)  # back to NCHW
+        # --- C) Swin Transformer branch ---
+        # 1) rearrange (B, C, H, W) → (B, H, W, C)
+        trans_x_permuted = rearrange(trans_x, 'b c h w -> b h w c')
+        # 2) apply Swin block
+        swin_out_permuted = self.trans_block(trans_x_permuted)    # (B, H, W, trans_dim)
+        # 3) rearrange back to (B, C, H, W)
+        swin_out = rearrange(swin_out_permuted, 'b h w c -> b c h w')  # (B, trans_dim, H, W)
 
-        # 4) Process NSTB branch and fuse three branches
-        B, C, H, W = raw_trans.shape
-        # Prepare input for NSTB: flatten spatial dims (use raw trans features)
+        # --- D) NSTB branch ---
+        B, C_t, H, W = raw_trans.shape
+        # 1) flatten spatial dims: (B, trans_dim, H, W) → (B, H*W, trans_dim)
         nstb_in = rearrange(raw_trans, 'b c h w -> b (h w) c')
-        # Run NSTB: returns (input, output, num_patches)
+        # 2) run NSTB: returns (inp, out_flat, num_patches)
         _, nstb_out_flat, _ = self.nstb_block(nstb_in, (H, W))
-        # Reshape NSTB output back to feature map
+        # 3) reshape back: (B, H*W, trans_dim) → (B, trans_dim, H, W)
         nstb_out = rearrange(nstb_out_flat, 'b (h w) c -> b c h w', h=H, w=W)
-        # Fuse conv, Swin-trans, and NSTB branches
-        res = self.conv1_2(torch.cat((conv_x, trans_x, nstb_out), dim=1))
 
-        # 5) Add residual connection
-        x = x + res
+        # --- E) Fuse conv_out, swin_out, nstb_out ---
+        fused = torch.cat((conv_out, swin_out, nstb_out), dim=1)   # (B, conv_dim + 2*trans_dim, H, W)
+        merged = self.conv1_2(fused)                               # (B, conv_dim + trans_dim, H, W)
 
-        return x
-
-
-#updated with ngswin branch
-
-# class ConvTransBlock(nn.Module):
-#     def __init__(self, conv_dim, trans_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
-#         """ SwinTransformer + Conv Block, now with branch C (NGswin) """
-#         super(ConvTransBlock, self).__init__()
-#         self.conv_dim = conv_dim
-#         self.trans_dim = trans_dim
-#         self.head_dim = head_dim
-#         self.window_size = window_size
-#         self.drop_path = drop_path
-#         self.type = type
-#         self.input_resolution = input_resolution
-
-#         assert self.type in ['W', 'SW']
-#         if self.input_resolution <= self.window_size:
-#             self.type = 'W'
-
-#         # ─── existing SwinT branch ───────────────────────────────────────────
-#         self.trans_block = Block(
-#             self.trans_dim, self.trans_dim,
-#             self.head_dim, self.window_size,
-#             self.drop_path, self.type, self.input_resolution
-#         )
-#         # ─────────────────────────────────────────────────────────────────────
-
-#         # ─── 1×1 Conv for initial split ─────────────────────────────────────
-#         self.conv1_1 = nn.Conv2d(
-#             self.conv_dim + self.trans_dim,
-#             self.conv_dim + self.trans_dim,
-#             kernel_size=1, stride=1, padding=0, bias=True
-#         )
-#         # ─────────────────────────────────────────────────────────────────────
-
-#         # ─── existing RConv branch ─────────────────────────────────────────
-#         self.conv_block = nn.Sequential(
-#             nn.Conv2d(self.conv_dim, self.conv_dim, 3, 1, 1, bias=False),
-#             nn.ReLU(True),
-#             nn.Conv2d(self.conv_dim, self.conv_dim, 3, 1, 1, bias=False)
-#         )
-#         # ─────────────────────────────────────────────────────────────────────
-
-#         # ─── added branch C: NGswin ────────────────────────────────────────
-#         self.branch_c = NGswin(
-#             training_img_size=self.input_resolution,
-#             in_chans=self.trans_dim,
-#             embed_dim=self.trans_dim,
-#             window_size=self.window_size,
-#             drop_path_rate=self.drop_path
-#         )
-#         # ─────────────────────────────────────────────────────────────────────
-
-#         # ─── updated final fuse conv to accept A + B + C ───────────────────
-#         self.conv1_2 = nn.Conv2d(
-#             self.conv_dim + self.trans_dim + self.trans_dim,
-#             self.conv_dim + self.trans_dim,
-#             kernel_size=1, stride=1, padding=0, bias=True
-#         )
-#         # ─────────────────────────────────────────────────────────────────────
-
-#     def forward(self, x):
-#         # 1) initial 1×1 split into conv_x (A) and trans_x (B)
-#         conv_x, trans_x = torch.split(
-#             self.conv1_1(x),
-#             (self.conv_dim, self.trans_dim),
-#             dim=1
-#         )
-
-#         # 2) RConv branch (A)
-#         conv_x = self.conv_block(conv_x) + conv_x
-
-#         # 3) SwinT branch (B)
-#         trans_x = Rearrange('b c h w -> b h w c')(trans_x)
-#         trans_x = self.trans_block(trans_x)
-#         trans_x = Rearrange('b h w c -> b c h w')(trans_x)
-
-#         # 4) NGswin branch (C)
-#         new_x = self.branch_c(trans_x)
-
-#         # 5) fuse A + B + C, then add residual
-#         res = self.conv1_2(torch.cat((conv_x, trans_x, new_x), dim=1))
-#         return x + res
-
-
+        # --- F) Final residual ---
+        out = x + merged                                            # (B, conv_dim + trans_dim, H, W)
+        return out
 
 
 class SCUNet(nn.Module):
