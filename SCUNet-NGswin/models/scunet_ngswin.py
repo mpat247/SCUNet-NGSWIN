@@ -1,3 +1,5 @@
+# SCUNet-NGswin/models/scunet_ngswin.py
+
 # -*- coding: utf-8 -*-
 import math
 import torch
