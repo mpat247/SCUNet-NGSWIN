@@ -248,6 +248,19 @@ def define_G(opt):
                    cpu_cache_length=opt_net['cpu_cache_length'])
 
     # ----------------------------------------
+    # SCUNet-NGswin
+    # ----------------------------------------
+    elif net_type == 'scunet_ngswin':
+        from models.network_scunet_ngswin import SCUNet as net
+        netG = net(
+            in_nc=opt_net.get('in_nc', 1),
+            config=opt_net.get('config', [2,2,2,2,2,2,2]),
+            dim=opt_net.get('nc', 64),
+            drop_path_rate=opt_net.get('drop_path_rate', 0.0),
+            input_resolution=opt_net.get('input_resolution', 256)
+        )
+
+    # ----------------------------------------
     # others
     # ----------------------------------------
     # TODO
