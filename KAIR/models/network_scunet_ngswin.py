@@ -559,7 +559,7 @@ class ConvTransNSTBBlock(nn.Module):
 
 class SCUNet(nn.Module):
 
-    def __init__(self, in_nc=3, config=[2,2,2,2,2,2,2], dim=64, drop_path_rate=0.0, input_resolution=256):
+    def __init__(self, in_nc=1, config=[2,2,2,2,2,2,2], dim=64, drop_path_rate=0.0, input_resolution=256):
         super(SCUNet, self).__init__()
         self.config = config
         self.dim = dim
@@ -656,6 +656,6 @@ if __name__ == '__main__':
     # torch.cuda.empty_cache()
     net = SCUNet()
 
-    x = torch.randn((2, 3, 64, 128))
+    x = torch.randn((2, 1, 64, 128))
     x = net(x)
     print(x.shape)
