@@ -1,3 +1,6 @@
+# Relative path: KAIR/main_train_psnr.py
+#
+
 import os.path
 import math
 import argparse
