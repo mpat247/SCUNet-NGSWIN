@@ -558,84 +558,186 @@ class ConvTransNSTBBlock(nn.Module):
 
 class SCUNet(nn.Module):
 
-    def __init__(self, in_nc=1, config=[2,2,2,2,2,2,2], dim=64, drop_path_rate=0.0, input_resolution=256):
+    def __init__(
+        self,
+        in_nc: int = 1,
+        config: list = [2,2,2,2,2,2,2],
+        dim: int = 64,
+        drop_path_rate: float = 0.0,
+        input_resolution: int = 256,
+        block_variant: str = 'conv'   # 'conv' | 'conv_nstb' | 'trans_nstb' | 'conv_trans_nstb'
+    ):
         super(SCUNet, self).__init__()
         self.config = config
         self.dim = dim
         self.head_dim = 32
         self.window_size = 8
 
-        # drop path rate for each layer
+        # --- Variant switch: pick which block to use ---
+        block_map = {
+            'conv'            : ConvTransBlock,
+            'conv_nstb'       : ConvNSTBBlock,
+            'trans_nstb'      : TransNSTBBlock,
+            'conv_trans_nstb': ConvTransNSTBBlock,
+        }
+        if block_variant not in block_map:
+            raise ValueError(
+                f"Unknown block_variant='{block_variant}'. "
+                f"Choose from {list(block_map.keys())}"
+            )
+        BlockClass = block_map[block_variant]
+
+        # drop path schedule
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(config))]
 
+        # Head
         self.m_head = [nn.Conv2d(in_nc, dim, 3, 1, 1, bias=False)]
+        self.m_head = nn.Sequential(*self.m_head)
 
         begin = 0
-        self.m_down1 = [ConvTransBlock(dim//2, dim//2, self.head_dim, self.window_size, dpr[i+begin], 'W' if not i%2 else 'SW', input_resolution) 
-                      for i in range(config[0])] + \
-                      [nn.Conv2d(dim, 2*dim, 2, 2, 0, bias=False)]
 
-        begin += config[0]
-        self.m_down2 = [ConvTransBlock(dim, dim, self.head_dim, self.window_size, dpr[i+begin], 'W' if not i%2 else 'SW', input_resolution//2)
-                      for i in range(config[1])] + \
-                      [nn.Conv2d(2*dim, 4*dim, 2, 2, 0, bias=False)]
-
-        begin += config[1]
-        self.m_down3 = [ConvTransBlock(2*dim, 2*dim, self.head_dim, self.window_size, dpr[i+begin], 'W' if not i%2 else 'SW',input_resolution//4)
-                      for i in range(config[2])] + \
-                      [nn.Conv2d(4*dim, 8*dim, 2, 2, 0, bias=False)]
-
-        begin += config[2]
-        self.m_body = [ConvTransBlock(4*dim, 4*dim, self.head_dim, self.window_size, dpr[i+begin], 'W' if not i%2 else 'SW', input_resolution//8)
-                    for i in range(config[3])]
-
-        begin += config[3]
-        self.m_up3 = [nn.ConvTranspose2d(8*dim, 4*dim, 2, 2, 0, bias=False),] + \
-                      [ConvTransBlock(2*dim, 2*dim, self.head_dim, self.window_size, dpr[i+begin], 'W' if not i%2 else 'SW',input_resolution//4)
-                      for i in range(config[4])]
-                      
-        begin += config[4]
-        self.m_up2 = [nn.ConvTranspose2d(4*dim, 2*dim, 2, 2, 0, bias=False),] + \
-                      [ConvTransBlock(dim, dim, self.head_dim, self.window_size, dpr[i+begin], 'W' if not i%2 else 'SW', input_resolution//2)
-                      for i in range(config[5])]
-                      
-        begin += config[5]
-        self.m_up1 = [nn.ConvTranspose2d(2*dim, dim, 2, 2, 0, bias=False),] + \
-                    [ConvTransBlock(dim//2, dim//2, self.head_dim, self.window_size, dpr[i+begin], 'W' if not i%2 else 'SW', input_resolution) 
-                      for i in range(config[6])]
-
-        self.m_tail = [nn.Conv2d(dim, in_nc, 3, 1, 1, bias=False)]
-
-        self.m_head = nn.Sequential(*self.m_head)
+        # Down1
+        # Original pure ConvTransBlock:
+        # self.m_down1 = [ConvTransBlock(... for i in range(config[0])] + [nn.Conv2d(dim, 2*dim, 2, 2, 0, bias=False)]
+        self.m_down1 = (
+            [ BlockClass(
+                  conv_dim=dim//2,
+                  trans_dim=dim//2,
+                  head_dim=self.head_dim,
+                  window_size=self.window_size,
+                  drop_path=dpr[i+begin],
+                  block_type='W' if i%2==0 else 'SW',
+                  input_resolution=input_resolution
+              ) for i in range(config[0]) ]
+            + [ nn.Conv2d(dim, 2*dim, 2, 2, 0, bias=False) ]
+        )
         self.m_down1 = nn.Sequential(*self.m_down1)
+        begin += config[0]
+
+        # Down2
+        # self.m_down2 = [ConvTransBlock(...)] + [nn.Conv2d(...)]
+        self.m_down2 = (
+            [ BlockClass(
+                  conv_dim=dim,
+                  trans_dim=dim,
+                  head_dim=self.head_dim,
+                  window_size=self.window_size,
+                  drop_path=dpr[i+begin],
+                  block_type='W' if i%2==0 else 'SW',
+                  input_resolution=input_resolution//2
+              ) for i in range(config[1]) ]
+            + [ nn.Conv2d(2*dim, 4*dim, 2, 2, 0, bias=False) ]
+        )
         self.m_down2 = nn.Sequential(*self.m_down2)
+        begin += config[1]
+
+        # Down3
+        # self.m_down3 = [ConvTransBlock(...)] + [nn.Conv2d(...)]
+        self.m_down3 = (
+            [ BlockClass(
+                  conv_dim=2*dim,
+                  trans_dim=2*dim,
+                  head_dim=self.head_dim,
+                  window_size=self.window_size,
+                  drop_path=dpr[i+begin],
+                  block_type='W' if i%2==0 else 'SW',
+                  input_resolution=input_resolution//4
+              ) for i in range(config[2]) ]
+            + [ nn.Conv2d(4*dim, 8*dim, 2, 2, 0, bias=False) ]
+        )
         self.m_down3 = nn.Sequential(*self.m_down3)
+        begin += config[2]
+
+        # Body (bottleneck)
+        # self.m_body = [ConvTransBlock(...)] 
+        self.m_body = [
+            BlockClass(
+                conv_dim=4*dim,
+                trans_dim=4*dim,
+                head_dim=self.head_dim,
+                window_size=self.window_size,
+                drop_path=dpr[i+begin],
+                block_type='W' if i%2==0 else 'SW',
+                input_resolution=input_resolution//8
+            ) for i in range(config[3])
+        ]
         self.m_body = nn.Sequential(*self.m_body)
+        begin += config[3]
+
+        # Up3
+        # self.m_up3 = [nn.ConvTranspose2d(...)] + [ConvTransBlock(...)]
+        self.m_up3 = (
+            [ nn.ConvTranspose2d(8*dim, 4*dim, 2, 2, 0, bias=False) ]
+            + [ BlockClass(
+                    conv_dim=2*dim,
+                    trans_dim=2*dim,
+                    head_dim=self.head_dim,
+                    window_size=self.window_size,
+                    drop_path=dpr[i+begin],
+                    block_type='W' if i%2==0 else 'SW',
+                    input_resolution=input_resolution//4
+                ) for i in range(config[4]) ]
+        )
         self.m_up3 = nn.Sequential(*self.m_up3)
+        begin += config[4]
+
+        # Up2
+        # self.m_up2 = [nn.ConvTranspose2d(...)] + [ConvTransBlock(...)]
+        self.m_up2 = (
+            [ nn.ConvTranspose2d(4*dim, 2*dim, 2, 2, 0, bias=False) ]
+            + [ BlockClass(
+                    conv_dim=dim,
+                    trans_dim=dim,
+                    head_dim=self.head_dim,
+                    window_size=self.window_size,
+                    drop_path=dpr[i+begin],
+                    block_type='W' if i%2==0 else 'SW',
+                    input_resolution=input_resolution//2
+                ) for i in range(config[5]) ]
+        )
         self.m_up2 = nn.Sequential(*self.m_up2)
+        begin += config[5]
+
+        # Up1
+        # self.m_up1 = [nn.ConvTranspose2d(...)] + [ConvTransBlock(...)]
+        self.m_up1 = (
+            [ nn.ConvTranspose2d(2*dim, dim, 2, 2, 0, bias=False) ]
+            + [ BlockClass(
+                    conv_dim=dim//2,
+                    trans_dim=dim//2,
+                    head_dim=self.head_dim,
+                    window_size=self.window_size,
+                    drop_path=dpr[i+begin],
+                    block_type='W' if i%2==0 else 'SW',
+                    input_resolution=input_resolution
+                ) for i in range(config[6]) ]
+        )
         self.m_up1 = nn.Sequential(*self.m_up1)
-        self.m_tail = nn.Sequential(*self.m_tail)  
+
+        # Tail
+        self.m_tail = [nn.Conv2d(dim, in_nc, 3, 1, 1, bias=False)]
+        self.m_tail = nn.Sequential(*self.m_tail)
+
         #self.apply(self._init_weights)
 
-    def forward(self, x0):
 
+    def forward(self, x0):
         h, w = x0.size()[-2:]
-        paddingBottom = int(np.ceil(h/64)*64-h)
-        paddingRight = int(np.ceil(w/64)*64-w)
+        paddingBottom = int(np.ceil(h/64)*64 - h)
+        paddingRight  = int(np.ceil(w/64)*64 - w)
         x0 = nn.ReplicationPad2d((0, paddingRight, 0, paddingBottom))(x0)
 
         x1 = self.m_head(x0)
         x2 = self.m_down1(x1)
         x3 = self.m_down2(x2)
         x4 = self.m_down3(x3)
-        x = self.m_body(x4)
-        x = self.m_up3(x+x4)
-        x = self.m_up2(x+x3)
-        x = self.m_up1(x+x2)
-        x = self.m_tail(x+x1)
+        x  = self.m_body(x4)
+        x  = self.m_up3(x + x4)
+        x  = self.m_up2(x + x3)
+        x  = self.m_up1(x + x2)
+        x  = self.m_tail(x + x1)
 
-        x = x[..., :h, :w]
-        
+        x  = x[..., :h, :w]
         return x
 
 
@@ -645,8 +747,9 @@ class SCUNet(nn.Module):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.bias,  0)
             nn.init.constant_(m.weight, 1.0)
+
 
 
 
