@@ -1,0 +1,66 @@
+{
+  "task": "scunet_ngswin_psnr_ssim",
+  "model": "scunet_ngswin",
+  "gpu_ids": [0],
+  "dist": false,
+
+  "scale": 1,
+  "n_channels": 1,
+
+  "path": {
+    "root": "denoising",
+    "pretrained_netG": null,
+    "pretrained_netE": null
+  },
+
+  "datasets": {
+    "train": {
+      "name": "syn_deeplesion_train",
+      "dataset_type": "deeplesion",
+      "dataroot_H": "/home/Drive-D/SynDeepLesion/train_640geo",
+      "dataroot_L": null,
+      "H_size": 96,
+      "dataloader_shuffle": true,
+      "dataloader_num_workers": 8,
+      "dataloader_batch_size": 4
+    },
+    "test": {
+      "name": "syn_deeplesion_test",
+      "dataset_type": "deeplesion",
+      "dataroot_H": "/home/Drive-D/SynDeepLesion/test_640geo",
+      "dataroot_L": null
+    }
+  },
+
+  "netG": {
+    "net_type": "scunet_ngswin",
+    "in_nc": 1,
+    "out_nc": 1,
+    "config": [2,2,2,2,2,2,2],
+    "dim": 64,
+    "drop_path_rate": 0.0,
+    "input_resolution": 640,
+    "block_variant": "conv"
+  },
+
+  "train": {
+    "G_lossfn_type": "l1",
+    "G_lossfn_weight": 1.0,
+    "E_decay": 0.999,
+
+    "G_optimizer_type": "adam",
+    "G_optimizer_lr": 1e-4,
+    "G_optimizer_wd": 0,
+
+    "G_scheduler_type": "MultiStepLR",
+    "G_scheduler_milestones": [200000, 400000, 600000, 800000],
+    "G_scheduler_gamma": 0.5,
+
+    "G_param_strict": true,
+    "E_param_strict": true,
+
+    "checkpoint_test": 5000,
+    "checkpoint_save": 5000,
+    "checkpoint_print": 200
+  }
+}

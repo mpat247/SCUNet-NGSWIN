@@ -1,0 +1,930 @@
+25-06-17 15:04:00.935 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 15:05:13.167 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 15:07:23.138 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 15:53:24.157 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 15:56:58.136 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 15:57:53.340 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 15:57:54.475 : Number of train images: 36,627, iters per epoch: 9,157
+25-06-17 15:59:10.104 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 15:59:11.252 : Number of train images: 36,627, iters per epoch: 9,157
+25-06-17 16:00:57.893 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 16:00:59.035 : Number of train images: 36,627, iters per epoch: 9,157
+25-06-17 16:29:41.656 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 16:29:42.744 : Number of train images: 36,627, iters per epoch: 9,157
+25-06-17 16:42:54.463 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 16:42:55.574 : Number of train images: 36,627, iters per epoch: 9,157
+25-06-17 16:54:14.966 :   task: scunet_ngswin_psnr_ssim
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: denoising
+    pretrained_netG: None
+    pretrained_netE: None
+    task: denoising/scunet_ngswin_psnr_ssim
+    log: denoising/scunet_ngswin_psnr_ssim
+    options: denoising/scunet_ngswin_psnr_ssim/options
+    models: denoising/scunet_ngswin_psnr_ssim/models
+    images: denoising/scunet_ngswin_psnr_ssim/images
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: syn_deeplesion_train
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/train_640geo
+      dataroot_L: None
+      H_size: 96
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: syn_deeplesion_test
+      dataset_type: deeplesion
+      dataroot_H: /home/Drive-D/SynDeepLesion/test_640geo
+      dataroot_L: None
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [2, 2, 2, 2, 2, 2, 2]
+    dim: 64
+    drop_path_rate: 0.0
+    input_resolution: 640
+    block_variant: conv
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 0.0001
+    G_optimizer_wd: 0
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [200000, 400000, 600000, 800000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 5000
+    checkpoint_save: 5000
+    checkpoint_print: 200
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_optimizer_betas: [0.9, 0.999]
+    G_scheduler_restart_weights: 1
+    G_optimizer_reuse: False
+  ]
+  opt_path: options/train_scunet_ngswin_1.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+
+25-06-17 16:54:16.167 : Number of train images: 36,627, iters per epoch: 9,157

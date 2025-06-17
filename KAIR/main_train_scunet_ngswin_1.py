@@ -1,6 +1,9 @@
 # Relative path: KAIR/main_train_scunet_ngswin_1.py
 #
-
+# training code for SCUNet‐NGSWIN
+# --------------------------------------------
+# adapted from KAIR/main_train_psnr.py
+# --------------------------------------------
 import os
 import os.path
 import math
@@ -18,14 +21,6 @@ from utils import utils_option as option
 from data.select_dataset import define_Dataset
 from models.select_model import define_Model
 
-'''
-# --------------------------------------------
-# training code for SCUNet w/ NGSwin blocks
-# --------------------------------------------
-# adapted from KAIR/main_train_psnr.py
-# --------------------------------------------
-'''
-
 def main(json_path='options/train_scunet_ngswin_1.json'):
     # ----------------------------------------
     # Step 1: prepare options
@@ -38,8 +33,8 @@ def main(json_path='options/train_scunet_ngswin_1.json'):
                         help='Which SCUNet block to train')
     args = parser.parse_args()
 
+    # parse JSON, inject chosen block if provided
     opt = option.parse(args.opt, is_train=True)
-    # inject chosen block_variant (overrides JSON if provided)
     if args.block_variant:
         opt['netG']['block_variant'] = args.block_variant
 
@@ -55,12 +50,13 @@ def main(json_path='options/train_scunet_ngswin_1.json'):
     init_iter_E, init_path_E = option.find_last_checkpoint(opt['path']['models'], net_type='E')
     opt['path']['pretrained_netG'] = init_path_G
     opt['path']['pretrained_netE'] = init_path_E
-    init_iter_optimizerG, init_path_optimizerG = option.find_last_checkpoint(
-        opt['path']['models'], net_type='optimizerG')
-    opt['path']['pretrained_optimizerG'] = init_path_optimizerG
-    current_step = max(init_iter_G, init_iter_E, init_iter_optimizerG)
+    init_iter_optimG, init_path_optimG = option.find_last_checkpoint(
+        opt['path']['models'], net_type='optimizerG'
+    )
+    opt['path']['pretrained_optimizerG'] = init_path_optimG
+    current_step = max(init_iter_G, init_iter_E, init_iter_optimG)
 
-    border = opt['scale']
+    border = opt.get('scale', 0)
 
     # ----------------------------------------
     # save opt for reproducibility
@@ -89,27 +85,29 @@ def main(json_path='options/train_scunet_ngswin_1.json'):
     # ----------------------------------------
     # Step 2: create dataloaders
     # ----------------------------------------
-    for phase, dataset_opt in opt['datasets'].items():
+    for phase, ds_opt in opt['datasets'].items():
         if phase == 'train':
-            train_set = define_Dataset(dataset_opt)
-            if dataset_opt['dataloader_shuffle']:
-                shuffle = True
-            else:
-                shuffle = False
+            train_set = define_Dataset(ds_opt)
+            shuffle = ds_opt['dataloader_shuffle']
             train_loader = DataLoader(
                 train_set,
-                batch_size=dataset_opt['dataloader_batch_size'],
+                batch_size=ds_opt['dataloader_batch_size'],
                 shuffle=shuffle,
-                num_workers=dataset_opt['dataloader_num_workers'],
+                num_workers=ds_opt['dataloader_num_workers'],
                 drop_last=True,
                 pin_memory=True,
             )
             logger.info(f'Number of train images: {len(train_set):,d}, '
-                        f'iters per epoch: {math.ceil(len(train_set)/dataset_opt["dataloader_batch_size"]):,d}')
+                        f'iters per epoch: {math.ceil(len(train_set)/ds_opt["dataloader_batch_size"]):,d}')
         elif phase == 'test':
-            test_set = define_Dataset(dataset_opt)
+            test_set = define_Dataset(ds_opt)
             test_loader = DataLoader(
-                test_set, batch_size=1, shuffle=False, num_workers=1, drop_last=False, pin_memory=True
+                test_set,
+                batch_size=1,
+                shuffle=False,
+                num_workers=1,
+                drop_last=False,
+                pin_memory=True,
             )
         else:
             raise NotImplementedError(f"Phase [{phase}] is not recognized.")
@@ -131,10 +129,8 @@ def main(json_path='options/train_scunet_ngswin_1.json'):
 
             # 1) update lr
             model.update_learning_rate(current_step)
-
             # 2) feed
             model.feed_data(train_data)
-
             # 3) optimize
             model.optimize_parameters(current_step)
 
@@ -184,8 +180,10 @@ def main(json_path='options/train_scunet_ngswin_1.json'):
 
                 avg_psnr /= idx
                 avg_ssim /= idx
-                logger.info(f'<epoch:{epoch:3d}, iter:{current_step:8,d}, '
-                            f'Avg PSNR: {avg_psnr:.2f}dB, Avg SSIM: {avg_ssim:.4f}\n')
+                logger.info(
+                    f'<epoch:{epoch:3d}, iter:{current_step:8,d}, '
+                    f'Avg PSNR: {avg_psnr:.2f}dB, Avg SSIM: {avg_ssim:.4f}\n'
+                )
 
 if __name__ == '__main__':
     main()

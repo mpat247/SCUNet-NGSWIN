@@ -1,13 +1,8 @@
-
-
-'''
 # --------------------------------------------
 # select dataset
 # --------------------------------------------
-# Kai Zhang (github: https://github.com/cszn)
+# Kai Zhang (github: https://github.com/cszn/KAIR)
 # --------------------------------------------
-'''
-
 
 def define_Dataset(dataset_opt):
     dataset_type = dataset_opt['dataset_type'].lower()
@@ -77,6 +72,11 @@ def define_Dataset(dataset_opt):
     elif dataset_type in ['vfi_vid4']:
         from data.dataset_video_test import VFI_Vid4 as D
 
+    # -----------------------------------------
+    # SynDeepLesion volumetric HDF5 dataset
+    # -----------------------------------------
+    elif dataset_type in ['deeplesion']:
+        from data.dataset_scunet_ngswin import DatasetSCUNetNGSWIN as D
 
     # -----------------------------------------
     # common
@@ -88,8 +88,8 @@ def define_Dataset(dataset_opt):
         from data.dataset_plainpatch import DatasetPlainPatch as D
 
     else:
-        raise NotImplementedError('Dataset [{:s}] is not found.'.format(dataset_type))
+        raise NotImplementedError(f'Dataset [{dataset_type}] is not found.')
 
     dataset = D(dataset_opt)
-    print('Dataset [{:s} - {:s}] is created.'.format(dataset.__class__.__name__, dataset_opt['name']))
+    print(f'Dataset [{dataset.__class__.__name__} - {dataset_opt["name"]}] is created.')
     return dataset

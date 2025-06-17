@@ -18,7 +18,7 @@ class WMSA(nn.Module):
     """ Self-attention module in Swin Transformer
     """
 
-    def __init__(self, input_dim, output_dim, head_dim, window_size, type):
+    def __init__(self, input_dim, output_dim, head_dim, window_size, block_type):
         super(WMSA, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -26,7 +26,7 @@ class WMSA(nn.Module):
         self.scale = self.head_dim ** -0.5
         self.n_heads = input_dim//head_dim
         self.window_size = window_size
-        self.type=type
+        self.type=block_type
         self.embedding_layer = nn.Linear(self.input_dim, 3*self.input_dim, bias=True)
 
         # TODO recover
@@ -101,14 +101,14 @@ class WMSA(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, input_dim, output_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
+    def __init__(self, input_dim, output_dim, head_dim, window_size, drop_path, block_type='W', input_resolution=None):
         """ SwinTransformer Block
         """
         super(Block, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
-        assert type in ['W', 'SW']
-        self.type = type
+        assert block_type in ['W', 'SW']
+        self.type = block_type
         if input_resolution <= window_size:
             self.type = 'W'
 
@@ -130,7 +130,7 @@ class Block(nn.Module):
 
 # original ConvTransBlock
 class ConvTransBlock(nn.Module):
-    def __init__(self, conv_dim, trans_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
+    def __init__(self, conv_dim, trans_dim, head_dim, window_size, drop_path, block_type='W', input_resolution=None):
         """ SwinTransformer and Conv Block
         """
         super(ConvTransBlock, self).__init__()
@@ -139,7 +139,7 @@ class ConvTransBlock(nn.Module):
         self.head_dim = head_dim
         self.window_size = window_size
         self.drop_path = drop_path
-        self.type = type
+        self.type = block_type
         self.input_resolution = input_resolution
 
         assert self.type in ['W', 'SW']
@@ -478,7 +478,7 @@ class ConvTransNSTBBlock(nn.Module):
             head_dim=self.head_dim,
             window_size=self.window_size,
             drop_path=self.drop_path,
-            type=self.type,
+            block_type=self.type,
             input_resolution=self.input_resolution
         )
 
@@ -591,6 +591,11 @@ class SCUNet(nn.Module):
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(config))]
 
         # Head
+        # Debugging: Log the value of in_nc
+        if in_nc is None:
+            raise ValueError("The 'in_nc' parameter is None. Please check the configuration.")
+        else:
+            print(f"Debug: in_nc = {in_nc}")
         self.m_head = [nn.Conv2d(in_nc, dim, 3, 1, 1, bias=False)]
         self.m_head = nn.Sequential(*self.m_head)
 
