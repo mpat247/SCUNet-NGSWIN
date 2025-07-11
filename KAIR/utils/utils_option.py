@@ -185,10 +185,19 @@ def find_last_checkpoint(save_dir, net_type='G', pretrained_path=None):
         iter_exist = []
         for file_ in file_list:
             iter_current = re.findall(r"(\d+)_{}.pth".format(net_type), file_)
-            iter_exist.append(int(iter_current[0]))
-        init_iter = max(iter_exist)
-        init_path = os.path.join(save_dir, '{}_{}.pth'.format(init_iter, net_type))
+            if iter_current:
+                iter_exist.append(int(iter_current[0]))
+            else:
+                print(f"Warning: File '{file_}' does not match the expected pattern.")
+        if iter_exist:
+            init_iter = max(iter_exist)
+            init_path = os.path.join(save_dir, '{}_{}.pth'.format(init_iter, net_type))
+        else:
+            print("Error: No valid checkpoint files found matching the pattern.")
+            init_iter = 0
+            init_path = pretrained_path
     else:
+        print("Warning: No checkpoint files found in the directory.")
         init_iter = 0
         init_path = pretrained_path
     return init_iter, init_path

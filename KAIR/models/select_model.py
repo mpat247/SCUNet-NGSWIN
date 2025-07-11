@@ -33,17 +33,8 @@ def define_Model(opt):
         m = M(opt)
 
     elif model_name == 'scunet_ngswin':
-        from models.network_scunet_ngswin import SCUNet
-        cfg = opt.get('netG', {})
-        # Unpack exactly what SCUNet.__init__ expects:
-        m = SCUNet(
-            in_nc=cfg.get('in_nc', 1),
-            config=cfg.get('config', [2, 2, 2, 2, 2, 2, 2]),
-            dim=cfg.get('dim', 64),
-            drop_path_rate=cfg.get('drop_path_rate', 0.0),
-            input_resolution=cfg.get('input_resolution', 256),
-            block_variant=cfg.get('block_variant', 'conv')
-        )
+        from models.model_scunet_ngswin import ModelSCUNetNGSwin as M
+        m = M(opt)
 
     else:
         raise NotImplementedError(f"Model [{model_name}] is not defined.")

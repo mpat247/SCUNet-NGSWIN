@@ -556,7 +556,7 @@ class ConvTransNSTBBlock(nn.Module):
         return out
 
 
-class SCUNet(nn.Module):
+class SCUNet_NGSwin(nn.Module):
 
     def __init__(
         self,
@@ -567,7 +567,7 @@ class SCUNet(nn.Module):
         input_resolution: int = 256,
         block_variant: str = 'conv'   # 'conv' | 'conv_nstb' | 'trans_nstb' | 'conv_trans_nstb'
     ):
-        super(SCUNet, self).__init__()
+        super(SCUNet_NGSwin, self).__init__()
         self.config = config
         self.dim = dim
         self.head_dim = 32
@@ -761,7 +761,7 @@ class SCUNet(nn.Module):
 if __name__ == '__main__':
 
     # torch.cuda.empty_cache()
-    net = SCUNet()
+    net = SCUNet_NGSwin()
 
     x = torch.randn((2, 1, 64, 128))
     x = net(x)

@@ -1,95 +1,104 @@
-# --------------------------------------------
-# select dataset
-# --------------------------------------------
-# Kai Zhang (github: https://github.com/cszn/KAIR)
-# --------------------------------------------
+# -*- coding: utf-8 -*-
+"""
+Dataset selector for KAIR
+-------------------------
+• Turns the `dataset_type` string (declared in the option-JSON) into an
+  actual Python class and instantiates it.
+• The lookup table below makes aliases explicit and keeps the code clean.
+• Only one line to change when you add a new dataset.
 
-def define_Dataset(dataset_opt):
-    dataset_type = dataset_opt['dataset_type'].lower()
-    if dataset_type in ['l', 'low-quality', 'input-only']:
-        from data.dataset_l import DatasetL as D
+Author: adapted by <you> from the original KAIR helper.
+"""
 
-    # -----------------------------------------
-    # denoising
-    # -----------------------------------------
-    elif dataset_type in ['dncnn', 'denoising']:
-        from data.dataset_dncnn import DatasetDnCNN as D
+import importlib
 
-    elif dataset_type in ['dnpatch']:
-        from data.dataset_dnpatch import DatasetDnPatch as D
 
-    elif dataset_type in ['ffdnet', 'denoising-noiselevel']:
-        from data.dataset_ffdnet import DatasetFFDNet as D
+# ──────────────────────────  ALIAS TABLE  ─────────────────────────────────
+#  key (str)        →  (module_path, class_name)
+#
+#  *You can list multiple aliases pointing to the same class.*
+DATASET_MAP = {
+    # low-quality input only
+    'l'                       : ('data.dataset_l',           'DatasetL'),
+    'low-quality'             : ('data.dataset_l',           'DatasetL'),
+    'input-only'              : ('data.dataset_l',           'DatasetL'),
 
-    elif dataset_type in ['fdncnn', 'denoising-noiselevelmap']:
-        from data.dataset_fdncnn import DatasetFDnCNN as D
+    # denoising families
+    'dncnn'                   : ('data.dataset_dncnn',       'DatasetDnCNN'),
+    'denoising'               : ('data.dataset_dncnn',       'DatasetDnCNN'),
+    'dnpatch'                 : ('data.dataset_dnpatch',     'DatasetDnPatch'),
+    'ffdnet'                  : ('data.dataset_ffdnet',      'DatasetFFDNet'),
+    'denoising-noiselevel'    : ('data.dataset_ffdnet',      'DatasetFFDNet'),
+    'fdncnn'                  : ('data.dataset_fdncnn',      'DatasetFDnCNN'),
+    'denoising-noiselevelmap' : ('data.dataset_fdncnn',      'DatasetFDnCNN'),
 
-    # -----------------------------------------
     # super-resolution
-    # -----------------------------------------
-    elif dataset_type in ['sr', 'super-resolution']:
-        from data.dataset_sr import DatasetSR as D
+    'sr'                      : ('data.dataset_sr',          'DatasetSR'),
+    'super-resolution'        : ('data.dataset_sr',          'DatasetSR'),
+    'srmd'                    : ('data.dataset_srmd',        'DatasetSRMD'),
+    'dpsr'                    : ('data.dataset_dpsr',        'DatasetDPSR'),
+    'dnsr'                    : ('data.dataset_dpsr',        'DatasetDPSR'),
+    'usrnet'                  : ('data.dataset_usrnet',      'DatasetUSRNet'),
+    'usrgan'                  : ('data.dataset_usrnet',      'DatasetUSRNet'),
+    'bsrnet'                  : ('data.dataset_blindsr',     'DatasetBlindSR'),
+    'bsrgan'                  : ('data.dataset_blindsr',     'DatasetBlindSR'),
+    'blindsr'                 : ('data.dataset_blindsr',     'DatasetBlindSR'),
 
-    elif dataset_type in ['srmd']:
-        from data.dataset_srmd import DatasetSRMD as D
+    # JPEG deblocking
+    'jpeg'                    : ('data.dataset_jpeg',        'DatasetJPEG'),
 
-    elif dataset_type in ['dpsr', 'dnsr']:
-        from data.dataset_dpsr import DatasetDPSR as D
+    # video restoration / VFI
+    'videorecurrenttraindataset'                : ('data.dataset_video_train', 'VideoRecurrentTrainDataset'),
+    'videorecurrenttrainnonblinddenoisingdataset': ('data.dataset_video_train', 'VideoRecurrentTrainNonblindDenoisingDataset'),
+    'videorecurrenttrainvimeodataset'           : ('data.dataset_video_train', 'VideoRecurrentTrainVimeoDataset'),
+    'videorecurrenttrainvimeovfidataset'        : ('data.dataset_video_train', 'VideoRecurrentTrainVimeoVFIDataset'),
+    'videorecurrenttestdataset'                 : ('data.dataset_video_test',  'VideoRecurrentTestDataset'),
+    'singlevideorecurrenttestdataset'           : ('data.dataset_video_test',  'SingleVideoRecurrentTestDataset'),
+    'videotestvimeo90kdataset'                  : ('data.dataset_video_test',  'VideoTestVimeo90KDataset'),
+    'vfi_davis'                                 : ('data.dataset_video_test',  'VFI_DAVIS'),
+    'vfi_ucf101'                                : ('data.dataset_video_test',  'VFI_UCF101'),
+    'vfi_vid4'                                  : ('data.dataset_video_test',  'VFI_Vid4'),
 
-    elif dataset_type in ['usrnet', 'usrgan']:
-        from data.dataset_usrnet import DatasetUSRNet as D
+    # ─── DeepLesion CT datasets ─────────────────────────────────────────────
+    # only CT images: low‐energy (LI_CT) and medium‐energy (ma_CT)
+    'li_ct'                  : ('data.dataset_scunet_ngswin', 'DatasetLICT'),
+    'ma_ct'                  : ('data.dataset_scunet_ngswin', 'DatasetMACT'),
+    'nii_ct'                 : ('data.dataset_scunet_ngswin', 'DatasetNIINCT'),
 
-    elif dataset_type in ['bsrnet', 'bsrgan', 'blindsr']:
-        from data.dataset_blindsr import DatasetBlindSR as D
+    # ─── Custom datasets ─────────────────────────────────────────────────────
+    'custom'                 : ('data.dataset_custom',        'DatasetCustom'),
 
-    # -------------------------------------------------
-    # JPEG compression artifact reduction (deblocking)
-    # -------------------------------------------------
-    elif dataset_type in ['jpeg']:
-        from data.dataset_jpeg import DatasetJPEG as D
+    # plain folders
+    'plain'                  : ('data.dataset_plain',         'DatasetPlain'),
+    'plainpatch'             : ('data.dataset_plainpatch',    'DatasetPlainPatch'),
+}
 
-    # -----------------------------------------
-    # video restoration
-    # -----------------------------------------
-    elif dataset_type in ['videorecurrenttraindataset']:
-        from data.dataset_video_train import VideoRecurrentTrainDataset as D
-    elif dataset_type in ['videorecurrenttrainnonblinddenoisingdataset']:
-        from data.dataset_video_train import VideoRecurrentTrainNonblindDenoisingDataset as D
-    elif dataset_type in ['videorecurrenttrainvimeodataset']:
-        from data.dataset_video_train import VideoRecurrentTrainVimeoDataset as D
-    elif dataset_type in ['videorecurrenttrainvimeovfidataset']:
-        from data.dataset_video_train import VideoRecurrentTrainVimeoVFIDataset as D
-    elif dataset_type in ['videorecurrenttestdataset']:
-        from data.dataset_video_test import VideoRecurrentTestDataset as D
-    elif dataset_type in ['singlevideorecurrenttestdataset']:
-        from data.dataset_video_test import SingleVideoRecurrentTestDataset as D
-    elif dataset_type in ['videotestvimeo90kdataset']:
-        from data.dataset_video_test import VideoTestVimeo90KDataset as D
-    elif dataset_type in ['vfi_davis']:
-        from data.dataset_video_test import VFI_DAVIS as D
-    elif dataset_type in ['vfi_ucf101']:
-        from data.dataset_video_test import VFI_UCF101 as D
-    elif dataset_type in ['vfi_vid4']:
-        from data.dataset_video_test import VFI_Vid4 as D
 
-    # -----------------------------------------
-    # SynDeepLesion volumetric HDF5 dataset
-    # -----------------------------------------
-    elif dataset_type in ['deeplesion']:
-        from data.dataset_scunet_ngswin import DatasetSCUNetNGSWIN as D
+# ────────────────────────── helper: dynamic import ────────────────────────
+def _import_module_class(module_path: str, class_name: str):
+    module = importlib.import_module(module_path)
+    try:
+        cls = getattr(module, class_name)
+    except AttributeError as e:
+        raise ImportError(f'Class "{class_name}" not found in module "{module_path}"') from e
+    return cls
 
-    # -----------------------------------------
-    # common
-    # -----------------------------------------
-    elif dataset_type in ['plain']:
-        from data.dataset_plain import DatasetPlain as D
 
-    elif dataset_type in ['plainpatch']:
-        from data.dataset_plainpatch import DatasetPlainPatch as D
+# ────────────────────────── public API ────────────────────────────────────
+def define_Dataset(dataset_opt: dict):
+    """
+    dataset_opt must contain at least:
+        { "name": "...", "dataset_type": "li_ct" | "ma_ct" | ... }
 
-    else:
-        raise NotImplementedError(f'Dataset [{dataset_type}] is not found.')
+    Returns an instantiated PyTorch Dataset.
+    """
+    dataset_type = dataset_opt['dataset_type'].lower()
+    if dataset_type not in DATASET_MAP:
+        raise NotImplementedError(f'Dataset type "{dataset_type}" is not registered.')
 
-    dataset = D(dataset_opt)
-    print(f'Dataset [{dataset.__class__.__name__} - {dataset_opt["name"]}] is created.')
+    module_path, class_name = DATASET_MAP[dataset_type]
+    DatasetClass = _import_module_class(module_path, class_name)
+
+    dataset = DatasetClass(dataset_opt)
+    print(f'Dataset [{dataset.__class__.__name__} – {dataset_opt["name"]}] is created.')
     return dataset

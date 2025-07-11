@@ -248,7 +248,7 @@ def define_G(opt):
     # SCUNet-NGswin
     # ----------------------------------------
     elif net_type == 'scunet_ngswin':
-        from models.network_scunet_ngswin import SCUNet as net
+        from models.network_scunet_ngswin import SCUNet_NGSwin as net
         netG = net(
             in_nc=opt_net.get('in_nc', 1),
             config=opt_net.get('config', [2,2,2,2,2,2,2]),
