@@ -312,7 +312,19 @@ def main(json_path='options/train_scunet_ngswin_1.json'):
     # Step 5: main training loop
     # ----------------------------------------
     if not goto_final_test_evaluation:
-        for epoch in range(1, 101):
+        # Calculate starting epoch based on current checkpoint iteration
+        ds_opt_train = opt['datasets']['train']
+        batch_size = ds_opt_train['dataloader_batch_size']
+        train_dataset_size = len(train_set)
+        iters_per_epoch = math.ceil(train_dataset_size / batch_size)
+        start_epoch = max(1, (current_step // iters_per_epoch) + 1)
+        
+        logger.info(f'Training dataset size: {train_dataset_size:,d}')
+        logger.info(f'Iterations per epoch: {iters_per_epoch:,d}')
+        logger.info(f'Current step: {current_step:,d}')
+        logger.info(f'Starting from epoch: {start_epoch}')
+        
+        for epoch in range(start_epoch, 101):
             # ---- train ----
             train_count = 0
             for train_data in tqdm(train_loader,

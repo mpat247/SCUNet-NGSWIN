@@ -1,0 +1,76 @@
+{
+  "task": "scunet_ngswin_conv_trans_nstb",
+  "model": "scunet_ngswin",  
+  "gpu_ids": [0],
+  "dist": false,
+
+  "scale": 1,
+  "n_channels": 1,
+
+  "path": {
+    "root": "training_results/conv_trans_nstb",  
+    "pretrained_netG": null,
+    "pretrained_netE": null
+  },
+
+  "datasets": {
+    "train": {
+      "name": "syn_deeplesion_train_li_ct",
+      "dataset_type": "li_ct",
+      "dataroot_H": "/home/Drive-D/SynDeepLesion/train_640geo",
+      "dataloader_shuffle": true,
+      "dataloader_num_workers": 4,
+      "dataloader_batch_size": 2
+    },
+    "test": {
+      "name": "syn_deeplesion_test_li_ct",
+      "dataset_type": "li_ct",
+      "dataroot_H": "/home/Drive-D/SynDeepLesion/test_640geo"
+    },
+    "test_2": {
+      "name": "clinical_metal_test_nii_ct",
+      "dataset_type": "nii_ct",
+      "dataroot_H": "/home/Drive-D/clinical_metal"
+    }
+  },
+
+  "netG": {
+    "net_type": "scunet_ngswin",
+    "in_nc": 1,
+    "out_nc": 1,
+    "config": [1, 1, 1, 1, 1, 1, 1],
+    "dim": 32,
+    "drop_path_rate": 0.0,
+    "input_resolution": 512,
+
+    "block_variant": "conv_trans_nstb",
+
+    "init_type": "kaiming_normal",
+    "init_bn_type": "constant",
+    "init_gain": 1.0
+  },
+
+  "train": {
+    "G_lossfn_type": "l1",
+    "G_lossfn_weight": 1.0,
+    "E_decay": 0.999,
+
+    "G_optimizer_type": "adam",
+    "G_optimizer_lr": 1e-4,
+    "G_optimizer_wd": 0,
+
+    "G_scheduler_type": "MultiStepLR",
+    "G_scheduler_milestones": [200000, 400000, 600000, 800000, 1000000, 1200000, 1400000, 1600000],
+    "G_scheduler_gamma": 0.5,
+
+    "G_param_strict": true,
+    "E_param_strict": true,
+
+    "checkpoint_test": 30000,
+    "checkpoint_save": 20000,
+    "checkpoint_print": 1000,
+    "use_fp16": true,
+    "test_both_checkpoints": true,
+    "test_save_every_nth": 10
+  }
+}

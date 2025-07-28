@@ -159,6 +159,8 @@ class ModelBase():
     # load the state_dict of the network
     # ----------------------------------------
     def load_network(self, load_path, network, strict=True, param_key='params'):
+        if not isinstance(load_path, str):
+            raise TypeError(f"load_path must be a string path to a .pth file, got {type(load_path)}")
         network = self.get_bare_model(network)
         if strict:
             state_dict = torch.load(load_path)
