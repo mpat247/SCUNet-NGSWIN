@@ -154,12 +154,7 @@ def process_original_dataset(model, dataset_path, output_dir, device, variant_na
                 'processing_status': 'success',
                 'metrics': {'psnr': psnr, 'ssim': ssim},
                 'file_info': {
-                    'path': test_data.get('L_path', ['unknown'])[0],
-                    'tensor_shapes': {
-                        'L': list(L.shape),
-                        'H': list(H.shape),
-                        'E': list(E.shape)
-                    }
+                    'path': test_data.get('L_path', ['unknown'])[0]
                 }
             }
             detailed_log.append(log_entry)
@@ -341,14 +336,12 @@ def process_clinical_dataset_with_masks(model, clinical_data_dir, mask_data_dir,
                 files_with_masks += 1
                 print(f"     External mask shape: {external_mask.shape}")
             
-            # Process limited number of slices for memory optimization
+            # Process ALL slices for complete evaluation coverage
             num_slices = clinical_data.shape[2] if len(clinical_data.shape) > 2 else 1
-            max_slices = min(num_slices, 12)  # Process fewer slices
-            slice_indices = list(range(0, max_slices, 3))  # Every 3rd slice
-            print(f"     Processing {len(slice_indices)} slices: {slice_indices}")
+            print(f"     Processing ALL {num_slices} slices for complete evaluation")
             
             # Process each slice
-            for slice_idx in slice_indices:
+            for slice_idx in range(num_slices):
                 slice_data = clinical_data[:, :, slice_idx]
                 
                 # Skip empty slices
@@ -386,6 +379,10 @@ def process_clinical_dataset_with_masks(model, clinical_data_dir, mask_data_dir,
                 
                 # Convert back to image
                 enhanced_img = util.tensor2uint(enhanced_tensor.squeeze().cpu())
+                
+                # Clear GPU memory after each inference
+                del processed_tensor, enhanced_tensor
+                torch.cuda.empty_cache()
                 
                 # Apply mask if available (for visualization)
                 masked_enhanced = apply_mask_to_image(enhanced_img, final_mask) if final_mask is not None else enhanced_img
@@ -572,6 +569,8 @@ def process_clinical_dataset_no_masks(model, clinical_data_dir, output_dir, devi
     print(f"\n🏥 PROCESSING CLINICAL DATASET WITHOUT MASKS - {variant_name.upper()}")
     print("="*60)
     
+    from .model_utils import save_progress_checkpoint, load_progress_checkpoint, cleanup_progress_checkpoint
+    
     config = ClinicalConfig()
     
     # Find all clinical images
@@ -580,6 +579,16 @@ def process_clinical_dataset_no_masks(model, clinical_data_dir, output_dir, devi
     
     print(f"📊 Found {len(clinical_files)} clinical .nii files")
     print(f"🔧 Using specialized clinical preprocessing WITHOUT masking - pure enhancement")
+    
+    # Check for existing progress checkpoint
+    checkpoint = load_progress_checkpoint(output_dir, variant_name)
+    start_file_idx = 0
+    processed_count = 0
+    
+    if checkpoint and checkpoint.get('dataset_type') == 'clinical_no_masks':
+        start_file_idx = checkpoint.get('current_file_idx', 0)
+        processed_count = checkpoint.get('processed_count', 0)
+        print(f"🔄 Resuming from checkpoint: file {start_file_idx+1}/{len(clinical_files)}, {processed_count} slices processed")
     
     # Create organized directory structure
     variant_dir = Path(output_dir) / variant_name
@@ -596,20 +605,36 @@ def process_clinical_dataset_no_masks(model, clinical_data_dir, output_dir, devi
         dir_path.mkdir(parents=True, exist_ok=True)
     
     processed_results = []
-    processed_count = 0
     detailed_log = []
     enhancement_quality_samples = []  # Track enhancement quality
     
-    for file_idx, clinical_file in enumerate(tqdm(clinical_files, desc=f"Processing {variant_name} - clinical no masks")):
+    # Start processing from checkpoint position
+    files_to_process = clinical_files[start_file_idx:]
+    
+    # Create properly configured progress bar
+    pbar = tqdm(files_to_process, 
+                desc=f"Processing {variant_name} - clinical no masks",
+                total=len(clinical_files),
+                initial=start_file_idx,
+                unit="file")
+    
+    for file_idx, clinical_file in enumerate(pbar):
         try:
-            print(f"  📁 [{file_idx+1}/{len(clinical_files)}] Processing {clinical_file.name}...")
+            actual_file_idx = start_file_idx + file_idx + 1  # +1 for 1-based indexing
+            print(f"  📁 [{actual_file_idx}/{len(clinical_files)}] Processing {clinical_file.name}...")
             
             # Load clinical image
             nii_img = nib.load(str(clinical_file))
             clinical_data = nii_img.get_fdata()
             
+            print(f"     Original shape: {clinical_data.shape}, HU range: [{clinical_data.min():.1f}, {clinical_data.max():.1f}]")
+            
+            # Process ALL slices for complete evaluation coverage
+            num_slices = clinical_data.shape[2] if len(clinical_data.shape) > 2 else 1
+            print(f"     Processing ALL {num_slices} slices for complete evaluation")
+            
             # Process each slice
-            for slice_idx in range(clinical_data.shape[2]):
+            for slice_idx in range(num_slices):
                 slice_data = clinical_data[:, :, slice_idx]
                 
                 # Skip empty slices
@@ -632,6 +657,10 @@ def process_clinical_dataset_no_masks(model, clinical_data_dir, output_dir, devi
                 
                 # Convert back to image
                 enhanced_img = util.tensor2uint(enhanced_tensor.squeeze().cpu())
+                
+                # Clear GPU memory after each inference
+                del processed_tensor, enhanced_tensor
+                torch.cuda.empty_cache()
                 
                 processed_count += 1
                 
@@ -684,6 +713,11 @@ def process_clinical_dataset_no_masks(model, clinical_data_dir, output_dir, devi
                     'processing_status': 'success'
                 }
                 detailed_log.append(log_entry)
+            
+            # Save progress checkpoint after each file
+            current_file_idx = start_file_idx + file_idx + 1  # +1 because we completed this file
+            save_progress_checkpoint(output_dir, variant_name, 'clinical_no_masks', 
+                                   current_file_idx, len(clinical_files), processed_count)
             
         except Exception as e:
             print(f"  Error processing {clinical_file.name}: {e}")
@@ -781,5 +815,8 @@ def process_clinical_dataset_no_masks(model, clinical_data_dir, output_dir, devi
     print(f"   Best enhancement examples: {len(enhancement_quality_samples[:10])}")
     print(f"   Complete processing log: {complete_log_path}")
     print(f"   Results saved to: {results_dir}")
+    
+    # Clean up progress checkpoint after successful completion
+    cleanup_progress_checkpoint(output_dir, variant_name)
     
     return summary

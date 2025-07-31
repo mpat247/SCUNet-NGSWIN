@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""
-Comprehensive Multi-Model Pipeline Evaluation
+"""# Import organized utility modules
+from inference_utils.model_utils import discover_all_trained_models, setup_model_and_checkpoint, get_next_inference_folder, get_smart_remaining_models, check_folder_completely_finished
+from inference_utils.dataset_processing import process_original_dataset, process_clinical_dataset_no_masks
+from inference_utils.visualization import create_comprehensive_analysisprehensive Multi-Model Pipeline Evaluation
 ============================================
 
 This script tests ALL trained model variants with exact preprocessing from test_conv_nstb_single.py:
@@ -15,6 +17,7 @@ Usage:
 
 import os
 import sys
+import json
 import argparse
 import torch
 import traceback
@@ -24,8 +27,8 @@ from pathlib import Path
 sys.path.append('/home/grad/mppatel/Documents/Project/SCUNet-NGSWIN/KAIR')
 
 # Import organized utility modules
-from inference_utils.model_utils import discover_all_trained_models, setup_model_and_checkpoint, get_next_inference_folder
-from inference_utils.dataset_processing import process_original_dataset, process_clinical_dataset_with_masks, process_clinical_dataset_no_masks
+from inference_utils.model_utils import discover_all_trained_models, setup_model_and_checkpoint, get_next_inference_folder, get_smart_remaining_models, check_folder_completely_finished
+from inference_utils.dataset_processing import process_original_dataset, process_clinical_dataset_no_masks
 from inference_utils.visualization import create_comprehensive_analysis
 
 def main():
@@ -39,9 +42,6 @@ def main():
     parser.add_argument('--clinical_data', type=str, 
                        default='/home/Drive-D/clinical_metal', 
                        help='Path to clinical dataset')
-    parser.add_argument('--clinical_masks', type=str, 
-                       default='/home/Drive-D/clinical_metal_mask', 
-                       help='Path to clinical masks')
     parser.add_argument('--base_output', type=str,
                        default='/home/grad/mppatel/Documents/Project/SCUNet-NGSWIN/KAIR/inference_results',
                        help='Base output directory for inference results')
@@ -53,7 +53,6 @@ def main():
     print(f"📂 Base output directory: {args.base_output}")
     print(f"📊 Original dataset: {args.original_data}")
     print(f"🏥 Clinical dataset: {args.clinical_data}")
-    print(f"🎭 Clinical masks: {args.clinical_masks}")
     
     # Check paths
     if not os.path.exists(args.original_data):
@@ -64,24 +63,43 @@ def main():
         print(f"❌ Clinical data path not found: {args.clinical_data}")
         return
     
-    if not os.path.exists(args.clinical_masks):
-        print(f"❌ Clinical masks path not found: {args.clinical_masks}")
-        return
+    # Get inference folder using smart logic
+    import glob
+    existing_folders = sorted(glob.glob(os.path.join(args.base_output, "inference_*")))
     
-    # Get next inference folder
-    output_dir = get_next_inference_folder(args.base_output)
+    if existing_folders:
+        # Check latest folder for incomplete work
+        latest_folder = existing_folders[-1]
+        
+        if check_folder_completely_finished(latest_folder):
+            # Latest folder is completely finished, create new one
+            output_dir = get_next_inference_folder(args.base_output)
+            models_info = discover_all_trained_models()
+            for model in models_info:
+                model['resume_status'] = None
+            print(f"📂 Previous work ({latest_folder}) completely finished, starting new folder: {output_dir}")
+        else:
+            # Found incomplete work, continue with this folder
+            models_info = get_smart_remaining_models(latest_folder)
+            output_dir = latest_folder
+            print(f"🔄 Resuming incomplete work in: {output_dir}")
+            print(f"📋 Found {len(models_info)} models that need processing")
+    else:
+        # No existing folders, create first one
+        output_dir = get_next_inference_folder(args.base_output)
+        models_info = discover_all_trained_models()
+        for model in models_info:
+            model['resume_status'] = None
+        print(f"📂 Starting first inference folder: {output_dir}")
     
     # Set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"🔧 Using device: {device}")
     
     try:
-        # Discover all trained models
-        models_info = discover_all_trained_models()
-        
         if not models_info:
-            print("❌ No trained models found! Check training_results directory.")
-            return
+                print("❌ No trained models found! Check training_results directory.")
+                return
         
         # Store all results
         all_results = {}
@@ -89,8 +107,12 @@ def main():
         # Process each model
         for model_idx, model_info in enumerate(models_info):
             variant = model_info['variant']
+            resume_status = model_info.get('resume_status')
+            
             print(f"\n{'='*80}")
             print(f"🎯 TESTING MODEL [{model_idx+1}/{len(models_info)}]: {variant.upper()}")
+            if resume_status:
+                print(f"🔄 RESUME MODE - Original: {'✅' if resume_status['original_complete'] else '❌'} | Clinical: {'✅' if resume_status['clinical_complete'] else '❌'}")
             print(f"{'='*80}")
             
             try:
@@ -99,35 +121,53 @@ def main():
                 model.netG.eval()  # Set to evaluation mode
                 
                 # Initialize results for this variant
-                all_results[variant] = {}
+                if variant not in all_results:
+                    all_results[variant] = {}
                 
-                # 1. Process original dataset (test_640geo)
-                print(f"\n🔄 [{model_idx+1}/{len(models_info)}] Processing original dataset for {variant}...")
-                original_results = process_original_dataset(
-                    model, args.original_data, output_dir, device, variant
-                )
-                all_results[variant]['original_dataset'] = original_results
+                # 1. Process original dataset (test_640geo) - skip if already completed
+                if not resume_status or not resume_status['original_complete']:
+                    print(f"\n🔄 [{model_idx+1}/{len(models_info)}] Processing original dataset for {variant}...")
+                    original_results = process_original_dataset(
+                        model, args.original_data, output_dir, device, variant
+                    )
+                    all_results[variant]['original_dataset'] = original_results
+                else:
+                    print(f"\n✅ [{model_idx+1}/{len(models_info)}] Original dataset already completed for {variant}, skipping...")
+                    # Load existing results
+                    try:
+                        results_file = Path(output_dir) / variant / "original_dataset" / "metrics_summary.json"
+                        with open(results_file, 'r') as f:
+                            all_results[variant]['original_dataset'] = json.load(f)
+                    except Exception as e:
+                        print(f"⚠️  Could not load existing original dataset results: {e}")
+
+                # 2. Process clinical dataset without masks - skip if already completed
+                if not resume_status or not resume_status['clinical_complete']:
+                    print(f"\n🔄 [{model_idx+1}/{len(models_info)}] Processing clinical dataset (no masks) for {variant}...")
+                    clinical_nomask_results = process_clinical_dataset_no_masks(
+                        model, args.clinical_data, output_dir, device, variant
+                    )
+                    all_results[variant]['clinical_dataset_no_masks'] = clinical_nomask_results
+                else:
+                    print(f"\n✅ [{model_idx+1}/{len(models_info)}] Clinical dataset already completed for {variant}, skipping...")
+                    # Load existing results
+                    try:
+                        results_file = Path(output_dir) / variant / "clinical_dataset_no_masks" / "clinical_no_masks_summary.json"
+                        with open(results_file, 'r') as f:
+                            all_results[variant]['clinical_dataset_no_masks'] = json.load(f)
+                    except Exception as e:
+                        print(f"⚠️  Could not load existing clinical dataset results: {e}")
                 
-                # 2. Process clinical dataset without masks
-                print(f"\n🔄 [{model_idx+1}/{len(models_info)}] Processing clinical dataset (no masks) for {variant}...")
-                clinical_nomask_results = process_clinical_dataset_no_masks(
-                    model, args.clinical_data, output_dir, device, variant
-                )
-                all_results[variant]['clinical_dataset_no_masks'] = clinical_nomask_results
-                
-                # 3. Process clinical dataset with masks
-                print(f"\n🔄 [{model_idx+1}/{len(models_info)}] Processing clinical dataset (with masks) for {variant}...")
-                clinical_masked_results = process_clinical_dataset_with_masks(
-                    model, args.clinical_data, args.clinical_masks, output_dir, device, variant
-                )
-                all_results[variant]['clinical_dataset_with_masks'] = clinical_masked_results
-                
+                # Print completion status
                 print(f"\n✅ COMPLETED {variant.upper()} - All datasets processed successfully!")
-                print(f"   📊 Original dataset: {original_results['metrics']['psnr']['mean']:.4f} dB PSNR, {original_results['metrics']['ssim']['mean']:.6f} SSIM")
-                print(f"   🏥 Clinical no masks: {clinical_nomask_results['total_samples']} slices processed")
-                print(f"   🎭 Clinical with masks: {clinical_masked_results['total_samples']} slices processed")
+                if 'original_dataset' in all_results[variant]:
+                    orig_results = all_results[variant]['original_dataset']
+                    print(f"   📊 Original dataset: {orig_results['metrics']['psnr']['mean']:.4f} dB PSNR, {orig_results['metrics']['ssim']['mean']:.6f} SSIM")
+                if 'clinical_dataset_no_masks' in all_results[variant]:
+                    clin_results = all_results[variant]['clinical_dataset_no_masks']
+                    print(f"   🏥 Clinical no masks: {clin_results['total_samples']} slices processed")
                 
-                # Clear GPU memory
+                # Clear GPU memory after each model
                 del model
                 torch.cuda.empty_cache()
                 
