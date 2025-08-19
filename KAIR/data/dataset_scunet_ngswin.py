@@ -57,7 +57,7 @@ class BaseCTDataset(Dataset):
             with open(self.filelist, 'r') as f:
                 rels = [l.strip() for l in f if l.strip()]
             all_slices = [
-                p if os.path.isabs(p) else os.path.join(self.root, rel)
+                rel if os.path.isabs(rel) else os.path.join(self.root, rel)
                 for rel in rels
             ]
         else:
@@ -119,18 +119,18 @@ class BaseCTDataset(Dataset):
             L_np = f_in[self.input_key][:]
             H_np = f_gt[self.gt_key][:]
 
-        # to torch.Tensor, add channel dim
-        L = torch.from_numpy(L_np).unsqueeze(0).float()
-        H = torch.from_numpy(H_np).unsqueeze(0).float()
+        # to torch.Tensor, add channel dim and normalize to [0,1]
+        # H5 stores float32 in [0,255] (written from uint8). Normalize here for model/metrics.
+        L = torch.from_numpy(L_np).unsqueeze(0).float().div(255.0)
+        H = torch.from_numpy(H_np).unsqueeze(0).float().div(255.0)
 
-        # ─── RESIZE to 512×512 so all patch‐grids divide evenly by window_size ───
+        # ─── RESIZE to 416×416 to match training resolution ───
         L = L.unsqueeze(0)
         H = H.unsqueeze(0)
         L = F.interpolate(L, size=(416, 416), mode='bilinear', align_corners=False)
         H = F.interpolate(H, size=(416, 416), mode='bilinear', align_corners=False)
         L = L.squeeze(0)
         H = H.squeeze(0)
-        # ──────────────────────────────────────────────────────────────────────────
 
         return {'L': L, 'H': H, 'L_path': in_path, 'H_path': gt_path}
 
@@ -204,3 +204,14 @@ class DatasetNIINCT(Dataset):
         H = H.squeeze(0)
         
         return {'L': L, 'H': H, 'L_path': in_path, 'H_path': in_path}
+
+# ───────────────────────  New: Clinical training pipeline  ───────────────
+class DatasetClinicalTrain(BaseCTDataset):
+        """Supervised clinical CT training dataset (our per-slice H5 layout).
+
+        Expects folders like:
+            <dataroot>/<case>/<slice_id>.h5  (dataset: 'LI_CT')
+            <dataroot>/<case>/gt.h5          (dataset: 'image')
+        """
+        def __init__(self, opt):
+                super().__init__(opt, input_key='LI_CT', gt_key='image')

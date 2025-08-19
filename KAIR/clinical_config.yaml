@@ -1,0 +1,51 @@
+clinical_config:
+  raw_dir: /home/Drive-D/clinical_metal # Your existing clinical data path
+  dataset_dir: /home/Drive-D/clinical_metal_supervised # Will be created
+  max_hu: [2000, 2500] # Conservative thresholds for better metal prosthetic detection  
+  connected_area: 12 # the size of connected metal area
+  image_size: 416 # output image size (match your SCUNet input)
+  # legacy ADN backstop (mirrors adn.min_high_px)
+  min_high_px: 5
+  # optional reproducible synthesis seed (mirrors processing.seed)
+  seed: 1234
+  train_test_split: 1.0 # 100% train, 0% test - all clean images go to training
+
+paths:
+  raw_data: /home/Drive-D/clinical_metal # Your existing clinical data path
+  output: /home/Drive-D/clinical_metal_supervised # Will be created
+
+adn:
+  # classic metal band that avoids bone tips
+  max_hu_thresholds: [2000, 2500]
+  # make CC gate sensitive to screws on 416²
+  conn_area_thresh: 12
+  # tiny pixel-count backstop for thin tips
+  min_high_px: 5
+
+processing:
+  target_size: 416 # output image size (match your SCUNet input)
+  thumbnail_size: 96 # thumbnail image size
+  train_test_split: 1.0 # 100% train, 0% test - all clean images go to training
+  num_tests: 200 # min number of images for testing
+  seed: 1234 # reproducible synthesis
+
+# Synthesis/streak controls (projection-domain) — tweak to strengthen/soften streaks
+synth:
+  add_poisson: true       # simulate photon stats in intensity space
+  I0: 200000              # source quanta (higher=cleaner; lower=streakier)
+  dose_scale: 0.2         # effective dose multiplier (0.1–0.3 typical)
+  clip_percentile: 99.7   # clip line integrals on metal rays (detector saturation)
+  trace_dilate_px: 1      # widen metal trace in sinogram by N pixels
+  # metal_mu_boost: 0.9   # optional extra boost above 2500 HU attenuation
+
+# CT parameters from InDuDoNet
+CTpara:
+  imPixNum: 416  #image pixels along x or y direction
+  angSize: 0.05  #angle between two neighbor rays
+  linSize: 1.8536
+  angNum: 640 # number of projection views
+  SOD: 1075  #source-to-origin distance
+  imPixScale: '512 / 416 * 0.03'
+  sinogram_size_x: 640
+  sinogram_size_y: 641
+  window: '[-175, 275] / 1000 * 0.192 + 0.192'

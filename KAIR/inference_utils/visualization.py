@@ -244,6 +244,7 @@ def create_comprehensive_analysis(all_results, output_dir):
     original_results = {}
     clinical_masked_results = {}
     clinical_nomask_results = {}
+    clinical_artifact_only_results = {}
     
     for variant, results in all_results.items():
         if 'original_dataset' in results:
@@ -252,6 +253,8 @@ def create_comprehensive_analysis(all_results, output_dir):
             clinical_masked_results[variant] = results['clinical_dataset_with_masks']
         if 'clinical_dataset_no_masks' in results:
             clinical_nomask_results[variant] = results['clinical_dataset_no_masks']
+        if 'clinical_artifact_only_dataset' in results:
+            clinical_artifact_only_results[variant] = results['clinical_artifact_only_dataset']
     
     # Create comprehensive summary
     comprehensive_summary = {
@@ -271,6 +274,10 @@ def create_comprehensive_analysis(all_results, output_dir):
             'clinical_without_masks': {
                 'variants_tested': len(clinical_nomask_results),
                 'results': clinical_nomask_results
+            },
+            'clinical_artifact_only': {
+                'variants_tested': len(clinical_artifact_only_results),
+                'results': clinical_artifact_only_results
             }
         },
         'preprocessing_methods': {
@@ -344,10 +351,29 @@ def create_comprehensive_analysis(all_results, output_dir):
         
         # Clinical dataset results
         if clinical_masked_results:
-            f.write("CLINICAL DATASET RESULTS:\n")
+            f.write("CLINICAL DATASET RESULTS (with masks):\n")
             f.write("-" * 50 + "\n")
             for variant, result in clinical_masked_results.items():
-                f.write(f"{variant:<15} | Samples: {result['total_samples']:<6} | Files: {result['total_files']:<3}\n")
+                total_files = result.get('total_files', 'N/A')
+                f.write(f"{variant:<15} | Samples: {result['total_samples']:<6} | Files: {total_files:<3}\n")
+            f.write("\n")
+        
+        # Clinical dataset results (no masks)
+        if clinical_nomask_results:
+            f.write("CLINICAL DATASET RESULTS (no masks):\n")
+            f.write("-" * 50 + "\n")
+            for variant, result in clinical_nomask_results.items():
+                total_files = result.get('total_files', 'N/A')
+                f.write(f"{variant:<15} | Samples: {result['total_samples']:<6} | Files: {total_files:<3}\n")
+            f.write("\n")
+        
+        # Clinical artifact-only dataset results
+        if clinical_artifact_only_results:
+            f.write("CLINICAL ARTIFACT-ONLY DATASET RESULTS:\n")
+            f.write("-" * 50 + "\n")
+            for variant, result in clinical_artifact_only_results.items():
+                total_files = result.get('total_files', result.get('total_dataset_size', 'N/A'))
+                f.write(f"{variant:<15} | Samples: {result['total_samples']:<6} | Files: {total_files:<3}\n")
             f.write("\n")
         
         f.write(f"Evaluation completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")

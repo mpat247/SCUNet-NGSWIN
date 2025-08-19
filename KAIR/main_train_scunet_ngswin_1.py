@@ -221,7 +221,7 @@ def main(json_path='options/train_scunet_ngswin_1.json'):
                 )
                 logger.info('No validation split - using all training data for training')
                 
-        elif phase == 'test' or phase == 'test_2':
+        elif phase == 'test' or phase == 'test_2' or phase == 'test_3':
             if phase == args.testset:
                 test_set = define_Dataset(ds_opt)
                 test_loader = DataLoader(

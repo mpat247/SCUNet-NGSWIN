@@ -20,7 +20,7 @@ from datetime import datetime
 sys.path.append('/home/grad/mppatel/Documents/Project/SCUNet-NGSWIN/KAIR')
 
 from utils import utils_image as util
-from data import select_dataset
+from data.select_dataset import define_Dataset
 from .preprocessing import ClinicalConfig, clinical_preprocessing, detect_metal_mask, load_clinical_mask_fixed, apply_mask_to_image
 from .visualization import create_comparison_grid, create_detailed_comparison_with_metrics, save_important_results
 
@@ -55,7 +55,7 @@ def process_original_dataset(model, dataset_path, output_dir, device, variant_na
         'phase': 'test'
     }
     
-    test_dataset = select_dataset.define_Dataset(opt_dataset)
+    test_dataset = define_Dataset(opt_dataset)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=1)
     
     print(f"📂 Found {len(test_dataset)} samples in original dataset")
@@ -819,4 +819,362 @@ def process_clinical_dataset_no_masks(model, clinical_data_dir, output_dir, devi
     # Clean up progress checkpoint after successful completion
     cleanup_progress_checkpoint(output_dir, variant_name)
     
+    return summary
+
+
+def process_clinical_artifact_only_dataset(model, artifact_data_dir, output_dir, device, variant_name):
+    """Process clinical artifact-only dataset from H5 files structured like supervised dataset"""
+    print(f"\n🔬 PROCESSING CLINICAL ARTIFACT-ONLY DATASET - {variant_name.upper()}")
+    print("="*60)
+    print(f"🔧 Processing H5 artifact-only files using dataset loader")
+    
+    from .model_utils import save_progress_checkpoint, load_progress_checkpoint, cleanup_progress_checkpoint
+    import h5py
+    
+    # Use the same dataset loader approach as original dataset processing
+    print(f"📊 Loading artifact-only dataset from: {artifact_data_dir}")
+    
+    # Create dataset loader (similar to original dataset processing)
+    opt_dataset = {
+        'name': 'artifact_only_h5',
+        'dataset_type': 'li_ct',  # Use the same dataset type as training
+        'dataroot_H': artifact_data_dir,
+        'dataroot_L': artifact_data_dir,  # Use same path for both
+        'H_size': None,      # Don't resize
+        'phase': 'test'
+    }
+    
+    try:
+        dataset = define_Dataset(opt_dataset)
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
+        print(f"📊 Found {len(dataset)} artifact-only samples")
+    except Exception as e:
+        print(f"❌ Error creating dataset loader: {e}")
+        print("Falling back to manual H5 file processing...")
+        return process_clinical_artifact_only_manual(model, artifact_data_dir, output_dir, device, variant_name)
+    
+    # Check for existing progress checkpoint
+    checkpoint = load_progress_checkpoint(output_dir, variant_name)
+    start_idx = 0
+    processed_count = 0
+    
+    if checkpoint and checkpoint.get('dataset_type') == 'clinical_artifact_only':
+        start_idx = checkpoint.get('current_idx', 0)
+        processed_count = checkpoint.get('processed_count', 0)
+        print(f"🔄 Resuming from checkpoint: sample {start_idx+1}/{len(dataset)}, {processed_count} processed")
+    
+    # Create organized directory structure
+    variant_dir = Path(output_dir) / variant_name
+    results_dir = variant_dir / "clinical_artifact_only_dataset"
+    comparisons_dir = results_dir / "individual_results"
+    preprocessing_dir = results_dir / "preprocessing_visualizations"
+    important_results_dir = results_dir / f"important_results_{variant_name}_artifact_only"
+    best_enhancements_dir = important_results_dir / "best_enhancements"
+    enhancement_analysis_dir = important_results_dir / "enhancement_analysis"
+    logs_dir = results_dir / "detailed_logs"
+    
+    for dir_path in [comparisons_dir, preprocessing_dir, important_results_dir, 
+                     best_enhancements_dir, enhancement_analysis_dir, logs_dir]:
+        dir_path.mkdir(parents=True, exist_ok=True)
+    
+    processed_results = []
+    detailed_log = []
+    enhancement_quality_samples = []
+    
+    # Process samples with progress tracking
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), 
+                desc=f"Processing {variant_name} - artifact-only")
+    
+    for idx, data in pbar:
+        if idx < start_idx:
+            continue
+            
+        try:
+            # Get input data (artifact-only image)
+            if 'H' in data:
+                L_img = data['H'].to(device)  # Use H as input since it's artifact-only
+            elif 'L' in data:
+                L_img = data['L'].to(device)
+            else:
+                print(f"❌ No input data found in sample {idx}")
+                continue
+            
+            # Get the actual numpy array for analysis
+            input_np = util.tensor2uint(L_img.squeeze().cpu())
+            
+            # Model inference
+            with torch.no_grad():
+                model.feed_data({'L': L_img, 'H': L_img})  # Use same for both
+                model.test()
+                E_img = model.current_visuals()['E']
+            
+            # Convert to numpy for saving and analysis
+            enhanced_np = util.tensor2uint(E_img.squeeze().cpu())
+            
+            # Clear GPU memory
+            torch.cuda.empty_cache()
+            
+            processed_count += 1
+            
+            # Calculate enhancement metrics
+            enhancement_quality = {
+                'input_std': float(input_np.std()),
+                'enhanced_std': float(enhanced_np.std()),
+                'enhancement_ratio': float(enhanced_np.std() / input_np.std()) if input_np.std() > 0 else 1.0,
+                'input_mean': float(input_np.mean()),
+                'enhanced_mean': float(enhanced_np.mean())
+            }
+            
+            # Store result info
+            result_info = {
+                'sample_idx': idx,
+                'processed_count': processed_count,
+                'input_shape': list(input_np.shape),
+                'enhancement_quality': enhancement_quality
+            }
+            processed_results.append(result_info)
+            
+            # Track for quality analysis
+            enhancement_quality_samples.append({
+                'sample_idx': idx,
+                'processed_count': processed_count,
+                'quality_metrics': enhancement_quality,
+                'images': {
+                    'input': input_np,
+                    'enhanced': enhanced_np
+                }
+            })
+            
+            # Save comparison every 10 samples
+            if processed_count % 10 == 0:
+                comparison_images = [input_np, enhanced_np]
+                comparison_titles = ['Artifact-Only Input', 'Enhanced']
+                save_path = comparisons_dir / f"comparison_{processed_count:06d}_sample_{idx:04d}.png"
+                create_comparison_grid(comparison_images, comparison_titles, processed_count, save_path, variant_name)
+            
+            # Save preprocessing visualization every 20 samples
+            if processed_count % 20 == 0:
+                # Show difference analysis
+                diff_img = np.abs(enhanced_np.astype(float) - input_np.astype(float))
+                prep_images = [input_np, enhanced_np, diff_img.astype(np.uint8)]
+                prep_titles = ['Artifact Input', 'Enhanced', 'Enhancement Difference']
+                save_path = preprocessing_dir / f"preprocessing_{processed_count:06d}_sample_{idx:04d}.png"
+                create_comparison_grid(prep_images, prep_titles, processed_count, save_path, variant_name)
+            
+            # Log progress
+            log_entry = {
+                'timestamp': datetime.now().isoformat(),
+                'sample_idx': idx,
+                'processed_count': processed_count,
+                'processing_status': 'success',
+                'enhancement_metrics': enhancement_quality
+            }
+            detailed_log.append(log_entry)
+            
+            # Save progress checkpoint periodically
+            if processed_count % 50 == 0:
+                save_progress_checkpoint(output_dir, variant_name, 'clinical_artifact_only', 
+                                       idx, len(dataset), processed_count)
+        
+        except Exception as e:
+            print(f"❌ Error processing sample {idx}: {e}")
+            error_log_entry = {
+                'timestamp': datetime.now().isoformat(),
+                'sample_idx': idx,
+                'processing_status': 'error',
+                'error_message': str(e)
+            }
+            detailed_log.append(error_log_entry)
+            continue
+    
+    # Sort enhancement samples by quality
+    enhancement_quality_samples.sort(key=lambda x: x['quality_metrics']['enhancement_ratio'], reverse=True)
+    
+    # Save best enhancement samples to important results
+    print(f"💾 Saving important artifact-only results for {variant_name}...")
+    
+    # Save top enhancement samples
+    num_best = min(10, len(enhancement_quality_samples))
+    for i, sample in enumerate(enhancement_quality_samples[:num_best]):
+        enhancement_comparison = [
+            sample['images']['input'], 
+            sample['images']['enhanced'],
+            np.abs(sample['images']['enhanced'].astype(float) - sample['images']['input'].astype(float)).astype(np.uint8)
+        ]
+        comparison_titles = ['Artifact Input', 'Enhanced', 'Enhancement Difference']
+        save_path = best_enhancements_dir / f"best_enhancement_{i+1:02d}_sample_{sample['sample_idx']:04d}.png"
+        create_comparison_grid(enhancement_comparison, comparison_titles, sample['processed_count'], save_path, variant_name)
+    
+    # Save complete processing log
+    complete_log_path = logs_dir / f"{variant_name}_artifact_only_complete_log.json"
+    with open(complete_log_path, 'w') as f:
+        json.dump({
+            'variant': variant_name,
+            'dataset_type': 'clinical_artifact_only',
+            'processing_summary': {
+                'total_samples': len(dataset),
+                'samples_processed': len(processed_results),
+                'processing_time': datetime.now().isoformat()
+            },
+            'enhancement_analysis': {
+                'top_enhancements': [
+                    {
+                        'rank': i+1,
+                        'sample_idx': s['sample_idx'],
+                        'enhancement_metrics': s['quality_metrics']
+                    } for i, s in enumerate(enhancement_quality_samples[:num_best])
+                ]
+            },
+            'detailed_processing_log': detailed_log
+        }, f, indent=2)
+    
+    # Save artifact-only summary
+    summary = {
+        'variant': variant_name,
+        'dataset_type': 'clinical_artifact_only',
+        'total_samples': len(processed_results),
+        'total_dataset_size': len(dataset),
+        'masking_applied': False,
+        'comparisons_saved': len(processed_results) // 10,
+        'preprocessing_visualizations': len(processed_results) // 20,
+        'important_results_summary': {
+            'best_enhancements_saved': num_best,
+            'enhancement_analysis_examples': len(processed_results),
+            'detailed_logs_saved': True
+        },
+        'specialized_preprocessing': {
+            'input_format': 'H5 artifact-only dataset (LI_CT key)',
+            'loader_compatible': True,
+            'normalization': 'dataset loader preprocessing',
+            'masking': 'none - direct artifact-only enhancement'
+        },
+        'output_structure': {
+            'individual_results': "individual_results/",
+            'preprocessing_visualizations': "preprocessing_visualizations/",
+            'important_results_folder': f"important_results_{variant_name}_artifact_only",
+            'logs_folder': "detailed_logs/"
+        },
+        'detailed_results': processed_results
+    }
+    
+    with open(results_dir / "artifact_only_summary.json", 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    print(f"\n📊 {variant_name.upper()} CLINICAL ARTIFACT-ONLY DATASET RESULTS:")
+    print(f"   Total samples processed: {len(processed_results)}")
+    print(f"   Dataset size: {len(dataset)}")
+    print(f"   Processing type: H5-based artifact-only enhancement")
+    print(f"   Comparison images saved: {len(processed_results) // 10}")
+    print(f"   Preprocessing visualizations: {len(processed_results) // 20}")
+    print(f"   Best enhancement examples: {num_best}")
+    print(f"   Results saved to: {results_dir}")
+    
+    # Clean up checkpoint file
+    cleanup_progress_checkpoint(output_dir, variant_name)
+    
+    return summary
+
+
+def process_clinical_artifact_only_manual(model, artifact_data_dir, output_dir, device, variant_name):
+    """Fallback manual processing for H5 files when dataset loader fails"""
+    print(f"🔧 Manual H5 processing fallback...")
+    
+    from .model_utils import save_progress_checkpoint, load_progress_checkpoint, cleanup_progress_checkpoint
+    import h5py
+    
+    # Find H5 files manually
+    artifact_files = []
+    artifact_path = Path(artifact_data_dir)
+    
+    for case_dir in artifact_path.iterdir():
+        if case_dir.is_dir():
+            h5_files = list(case_dir.glob("*.h5"))
+            # Filter out gt.h5 files, keep numbered slice files
+            slice_files = [f for f in h5_files if f.name != "gt.h5" and f.name.replace('.h5', '').isdigit()]
+            artifact_files.extend(slice_files)
+    
+    artifact_files.sort()
+    print(f"📊 Found {len(artifact_files)} H5 slice files")
+    
+    if len(artifact_files) == 0:
+        print(f"❌ No H5 slice files found in {artifact_data_dir}")
+        return {'variant': variant_name, 'dataset_type': 'clinical_artifact_only', 'total_samples': 0, 'error': 'No files found'}
+    
+    # Similar processing logic as above but reading H5 files manually
+    processed_results = []
+    processed_count = 0
+    
+    # Create directories
+    variant_dir = Path(output_dir) / variant_name
+    results_dir = variant_dir / "clinical_artifact_only_dataset"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    for artifact_file in tqdm(artifact_files, desc="Processing H5 files"):  # Process all files
+        try:
+            # Read H5 file
+            with h5py.File(str(artifact_file), 'r') as f:
+                # Try different keys based on your create_supervised_clinical_dataset.py
+                if 'LI_CT' in f:
+                    input_data = f['LI_CT'][:]
+                elif 'ma_CT' in f:
+                    input_data = f['ma_CT'][:]
+                else:
+                    print(f"❌ No recognized keys in {artifact_file}")
+                    continue
+            
+            # Convert to tensor (following dataset loader pattern)
+            input_tensor = torch.from_numpy(input_data).float().unsqueeze(0).unsqueeze(0).to(device)
+            
+            # Model inference
+            with torch.no_grad():
+                model.feed_data({'L': input_tensor, 'H': input_tensor})
+                model.test()
+                enhanced_tensor = model.current_visuals()['E']
+            
+            enhanced_np = util.tensor2uint(enhanced_tensor.squeeze().cpu())
+            processed_count += 1
+            
+            processed_results.append({
+                'file_path': str(artifact_file),
+                'processed_count': processed_count
+            })
+            
+        except Exception as e:
+            print(f"❌ Error processing {artifact_file}: {e}")
+            continue
+    
+    # Create summary
+    summary = {
+        'variant': variant_name,
+        'dataset_type': 'clinical_artifact_only',
+        'total_samples': len(processed_results),
+        'total_files': len(artifact_files),  # Add missing total_files key
+        'processing_method': 'manual_fallback',
+        'masking_applied': False,
+        'comparisons_saved': 0,
+        'preprocessing_visualizations': 0,
+        'important_results_summary': {
+            'best_enhancements_saved': 0,
+            'enhancement_analysis_examples': len(processed_results),
+            'detailed_logs_saved': False
+        },
+        'specialized_preprocessing': {
+            'input_format': 'H5 artifact-only dataset (manual fallback)',
+            'loader_compatible': False,
+            'normalization': 'tensor preprocessing',
+            'masking': 'none - direct artifact-only enhancement'
+        },
+        'output_structure': {
+            'individual_results': "manual_fallback/",
+            'preprocessing_visualizations': "manual_fallback/",
+            'important_results_folder': f"manual_fallback_{variant_name}",
+            'logs_folder': "manual_fallback/"
+        },
+        'detailed_results': processed_results
+    }
+    
+    with open(results_dir / "artifact_only_summary.json", 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    print(f"✅ Manual processing completed: {len(processed_results)} samples")
     return summary

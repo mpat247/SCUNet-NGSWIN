@@ -64,6 +64,8 @@ DATASET_MAP = {
     'li_ct'                  : ('data.dataset_scunet_ngswin', 'DatasetLICT'),
     'ma_ct'                  : ('data.dataset_scunet_ngswin', 'DatasetMACT'),
     'nii_ct'                 : ('data.dataset_scunet_ngswin', 'DatasetNIINCT'),
+    'clinical_supervised'    : ('data.dataset_scunet_ngswin', 'DatasetLICT'),  # Your new supervised clinical dataset
+    'clinical_training'      : ('data.dataset_scunet_ngswin', 'DatasetClinicalTrain'),
 
     # ─── Custom datasets ─────────────────────────────────────────────────────
     'custom'                 : ('data.dataset_custom',        'DatasetCustom'),

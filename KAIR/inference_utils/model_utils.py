@@ -24,7 +24,7 @@ from models import select_model
 def get_model_variant_configs():
     """
     Get model variant configurations with their exact option file mappings
-    Based on your actual configuration files
+    Based on your actual configuration files, including finetuned models
     """
     return {
         'conv_nstb': {
@@ -47,6 +47,20 @@ def get_model_variant_configs():
             'base_config': 'train_scunet_ngswin_2.json',
             'block_variant': 'trans_nstb', 
             'task_name': 'scunet_ngswin_trans_nstb'
+        },
+        'conv_trans_nstb_finetuned': {
+            'path': 'conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned',
+            'display_name': 'Conv Trans Nstb (Finetuned Li_CT)',
+            'base_config': 'train_scunet_ngswin_4.json',
+            'block_variant': 'conv_trans_nstb',
+            'task_name': 'scunet_ngswin_conv_trans_nstb_finetuned'
+        },
+        'conv_trans_nstb_finetuned_400k': {
+            'path': 'conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned_400k',
+            'display_name': 'Conv Trans Nstb (Finetuned 400k Clinical)',
+            'base_config': 'train_scunet_ngswin_4.json',
+            'block_variant': 'conv_trans_nstb',
+            'task_name': 'scunet_ngswin_conv_trans_nstb_finetuned_400k'
         }
     }
 
@@ -449,9 +463,10 @@ def check_model_completion_status(output_dir, variant):
     """Check detailed completion status of a specific model variant"""
     variant_dir = Path(output_dir) / variant
     
-    # Check if both datasets are completed
+    # Check if all datasets are completed
     original_complete = (variant_dir / "original_dataset" / "metrics_summary.json").exists()
     clinical_complete = (variant_dir / "clinical_dataset_no_masks" / "clinical_no_masks_summary.json").exists()
+    clinical_artifact_complete = (variant_dir / "clinical_artifact_only_dataset" / "clinical_artifact_only_summary.json").exists()
     
     # Check for checkpoint
     checkpoint = load_progress_checkpoint(output_dir, variant)
@@ -460,7 +475,8 @@ def check_model_completion_status(output_dir, variant):
         'variant': variant,
         'original_dataset_complete': original_complete,
         'clinical_dataset_complete': clinical_complete,
-        'fully_complete': original_complete and clinical_complete,
+        'clinical_artifact_dataset_complete': clinical_artifact_complete,
+        'fully_complete': original_complete and clinical_complete and clinical_artifact_complete,
         'has_checkpoint': checkpoint is not None,
         'checkpoint_info': checkpoint
     }
@@ -513,12 +529,29 @@ def get_smart_remaining_models(output_dir):
                 print(f"  ❌ {variant}: Clinical dataset summary corrupted: {e}")
         else:
             print(f"  ⏳ {variant}: Clinical dataset not started")
+        # Check clinical artifact-only dataset completion
+        clinical_artifact_complete = False
+        clinical_artifact_summary_path = variant_dir / "clinical_artifact_only_dataset" / "clinical_artifact_only_summary.json"
+        if clinical_artifact_summary_path.exists():
+            try:
+                with open(clinical_artifact_summary_path, 'r') as f:
+                    summary = json.load(f)
+                if summary.get('total_samples', 0) >= 5000:  # Should have ~7k+ slices
+                    clinical_artifact_complete = True
+                    print(f"  ✅ {variant}: Clinical artifact-only dataset complete ({summary.get('total_samples', 0)} slices)")
+                else:
+                    print(f"  🔄 {variant}: Clinical artifact-only dataset incomplete ({summary.get('total_samples', 0)} slices)")
+            except Exception as e:
+                print(f"  ❌ {variant}: Clinical artifact-only dataset summary corrupted: {e}")
+        else:
+            print(f"  ⏳ {variant}: Clinical artifact-only dataset not started")
         
         # Determine what needs to be done for this model
-        if not original_complete or not clinical_complete:
+        if not original_complete or not clinical_complete or not clinical_artifact_complete:
             resume_info = {
                 'original_complete': original_complete,
                 'clinical_complete': clinical_complete,
+                'clinical_artifact_complete': clinical_artifact_complete,
                 'checkpoint_available': False
             }
             

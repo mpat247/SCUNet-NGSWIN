@@ -44,7 +44,8 @@ from inference_utils.model_utils import (
 )
 from inference_utils.dataset_processing import (
     process_original_dataset, 
-    process_clinical_dataset_no_masks
+    process_clinical_dataset_no_masks,
+    process_clinical_artifact_only_dataset
 )
 from inference_utils.visualization import create_comprehensive_analysis
 
@@ -173,7 +174,8 @@ class InteractiveCLI:
         self.default_paths = {
             'original_data': '/home/Drive-D/SynDeepLesion/test_640geo',
             'clinical_data': '/home/Drive-D/clinical_metal',
-            'clinical_masks': '/home/Drive-D/clinical_metal_mask'
+            'clinical_masks': '/home/Drive-D/clinical_metal_mask',
+            'clinical_artifact_only': '/home/Drive-D/clincial_metal_test_Metal_artifact_only/test'
         }
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.results_config = ResultsConfig()  # Default configuration
@@ -434,7 +436,11 @@ class InteractiveCLI:
         dataset_options = [
             "Original dataset only (test_640geo)",
             "Clinical dataset only (no masks)", 
-            "Both datasets",
+            "Clinical artifact-only dataset (test set)",
+            "Original + Clinical datasets",
+            "Original + Clinical artifact-only datasets", 
+            "Clinical + Clinical artifact-only datasets",
+            "All three datasets",
             "Custom dataset paths"
         ]
         
@@ -447,18 +453,32 @@ class InteractiveCLI:
         datasets = {
             'test_original': False,
             'test_clinical': False,
+            'test_clinical_artifact_only': False,
             'original_path': self.default_paths['original_data'],
-            'clinical_path': self.default_paths['clinical_data']
+            'clinical_path': self.default_paths['clinical_data'],
+            'clinical_artifact_only_path': self.default_paths['clinical_artifact_only']
         }
         
         if choice == 1:  # Original only
             datasets['test_original'] = True
         elif choice == 2:  # Clinical only
             datasets['test_clinical'] = True
-        elif choice == 3:  # Both
+        elif choice == 3:  # Clinical artifact-only only
+            datasets['test_clinical_artifact_only'] = True
+        elif choice == 4:  # Original + Clinical
             datasets['test_original'] = True
             datasets['test_clinical'] = True
-        elif choice == 4:  # Custom paths
+        elif choice == 5:  # Original + Clinical artifact-only
+            datasets['test_original'] = True
+            datasets['test_clinical_artifact_only'] = True
+        elif choice == 6:  # Clinical + Clinical artifact-only
+            datasets['test_clinical'] = True
+            datasets['test_clinical_artifact_only'] = True
+        elif choice == 7:  # All three
+            datasets['test_original'] = True
+            datasets['test_clinical'] = True
+            datasets['test_clinical_artifact_only'] = True
+        elif choice == 8:  # Custom paths
             datasets = self.get_custom_paths()
             if not datasets:
                 return None
@@ -469,7 +489,11 @@ class InteractiveCLI:
         """Get custom dataset paths from user"""
         print("\n📁 Enter custom dataset paths:")
         
-        datasets = {'test_original': False, 'test_clinical': False}
+        datasets = {
+            'test_original': False, 
+            'test_clinical': False, 
+            'test_clinical_artifact_only': False
+        }
         
         # Original dataset
         if self.get_yes_no("🔍 Test original dataset?"):
@@ -500,8 +524,23 @@ class InteractiveCLI:
                     print(f"❌ Path not found: {path}")
                     if not self.get_yes_no("Try again?"):
                         break
+
+        # Clinical artifact-only dataset  
+        if self.get_yes_no("🧪 Test clinical artifact-only dataset?"):
+            while True:
+                path = input(f"📂 Clinical artifact-only path [{self.default_paths['clinical_artifact_only']}]: ").strip()
+                if not path:
+                    path = self.default_paths['clinical_artifact_only']
+                if os.path.exists(path):
+                    datasets['clinical_artifact_only_path'] = path
+                    datasets['test_clinical_artifact_only'] = True
+                    break
+                else:
+                    print(f"❌ Path not found: {path}")
+                    if not self.get_yes_no("Try again?"):
+                        break
                         
-        if not datasets['test_original'] and not datasets['test_clinical']:
+        if not any([datasets['test_original'], datasets['test_clinical'], datasets['test_clinical_artifact_only']]):
             print("❌ No datasets selected!")
             return None
             
@@ -635,6 +674,8 @@ class InteractiveCLI:
             print(f"   • Original: {datasets['original_path']}")
         if datasets['test_clinical']:
             print(f"   • Clinical: {datasets['clinical_path']}")
+        if datasets['test_clinical_artifact_only']:
+            print(f"   • Clinical Artifact-Only: {datasets['clinical_artifact_only_path']}")
             
         print(f"\n📂 Output folder:")
         print(f"   • Path: {os.path.basename(output_info['path'])}")
@@ -699,6 +740,17 @@ class InteractiveCLI:
                     print(f"✅ Clinical dataset completed - {clinical_results['total_samples']} slices processed")
                 except Exception as e:
                     print(f"❌ Clinical dataset failed: {e}")
+            # Test clinical artifact-only dataset
+            if datasets['test_clinical_artifact_only']:
+                print(f"\n🧪 Testing clinical artifact-only dataset...")
+                try:
+                    clinical_artifact_results = process_clinical_artifact_only_dataset(
+                        model, datasets['clinical_artifact_only_path'], output_dir, self.device, variant
+                    )
+                    results['clinical_artifact_only_dataset'] = clinical_artifact_results
+                    print(f"✅ Clinical artifact-only dataset completed - {clinical_artifact_results['total_samples']} images processed")
+                except Exception as e:
+                    print(f"❌ Clinical artifact-only dataset failed: {e}")
                     
             # Clear GPU memory
             del model
@@ -740,8 +792,9 @@ class InteractiveCLI:
             if resume_status:
                 skip_original = resume_status.get('original_complete', False) and datasets['test_original']
                 skip_clinical = resume_status.get('clinical_complete', False) and datasets['test_clinical']
+                skip_clinical_artifact = resume_status.get('clinical_artifact_complete', False) and datasets['test_clinical_artifact_only']
                 
-                if skip_original and skip_clinical:
+                if skip_original and skip_clinical and skip_clinical_artifact:
                     print(f"\n✅ [{model_idx}/{len(models_to_test)}] {variant} already completed, skipping...")
                     continue
                     
