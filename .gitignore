@@ -12,9 +12,15 @@ KAIR/training_results/trans_nstb/scunet_ngswin_trans_nstb/models/*
 !KAIR/training_results/trans_nstb/scunet_ngswin_trans_nstb/models/psnr_E.pth
 !KAIR/training_results/trans_nstb/scunet_ngswin_trans_nstb/models/psnr_G.pth
 
-training_results/conv_nstb/models/*
-!training_results/conv_nstb/models/psnr_E.pth
-!training_results/conv_nstb/models/psnr_G.pth
+KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned/models/*
+!KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned/models/psnr_E.pth
+!KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned/models/psnr_G.pth
+
+
+KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned_400k/models/*
+!KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned_400k/models/psnr_E.pth
+!KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned_400k/models/psnr_G.pth
+
 
 # Dataset files (common formats)
 *.h5

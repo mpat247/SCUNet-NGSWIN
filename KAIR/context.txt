@@ -1,0 +1,590 @@
+Got it—I’m on the same page with your whole setup and the goal (train on SynDeepLesion → test on clinical → didn’t generalize → generate synthetic MAR on clinical clean slices → fine-tune → test on real-metal clinical).
+
+I tried to open your GitHub repo directly, but the GitHub page kept erroring in my browser session (looks like their UI didn’t render for me). So I can’t reliably quote line numbers from the repo page right this second. That said, from the code you already pasted and what we’ve discussed, here’s a tight, practical map of what to look at in your repo and what to fix to stop the “same grey blob” failure you’re seeing.
+
+What’s going wrong (symptoms → likely causes)
+
+Symptom: your “Enhanced” predictions on clinical look like a blurry oval with almost the same texture across many slices (mode-collapse / template-looking output).
+
+Most likely causes (and where to check them):
+
+Normalization mismatch across datasets.
+
+Your clinical supervised pairs (H5) load as 0–255 and are normalized to [0,1].
+
+SynDeepLesion samples in your validator showed very tiny ranges (~0–0.003).
+
+If your synthetic clinical pairs (the new ones you fine-tuned on) aren’t normalized exactly the same way as your supervised clinical pairs, the network will learn a wrong scale and drift to a constant-ish solution.
+
+Where to check: your Dataset classes (the ones that read CLINICAL_SUPERVISED H5 pairs and the new synthetic clinical pairs), and the transforms/normalization utilities used by them.
+
+Input/target swapped or paired incorrectly in the fine-tune dataset.
+
+If your dataloader yields (L, H) but L_path and H_path got mis-aligned (e.g., constant target), the optimizer drives the network toward a nearly constant “average target” image.
+
+Where to check: the synthetic clinical dataset’s __getitem__ (confirm L is the FBP of metal-corrupted projections and H is the original clean slice from the same sample; print a few (L_path, H_path) pairs and visualize).
+
+Wrong domain in/out (μ vs HU vs [0,1]).
+
+Your ODL path returns μ (linear attenuation). You’re training SCUNet on windowed HU mapped into [0,1] in clinical supervised.
+
+If your synthetic clinical saving keeps μ or HU without the same windowing and scaling, you’ve created a domain mismatch.
+
+Where to check: the code that writes the fine-tune pairs—make sure both L and H are windowed HU → scaled to [0,1] exactly the same as your clinical supervised set.
+
+Overpowering metal value or unrealistic projection noise.
+
+If METAL_MU is too high, or I0 is too small/too big, your sinogram → FBP may produce extreme streaks or a heavy circular “phantom” look. The network then learns to paint that phantom.
+
+Where to check: your synthetic generator (the one we sketched that uses ODL/ASTRA). Start with METAL_MU≈3–4 and I0≈1e5 and verify visually.
+
+Leakage of a single mask / wrong augmentation.
+
+If your metal mask loader accidentally returns the same mask (or near-identical ones) for many slices, the network collapses to one template.
+
+Where to check: mask sampling in the synthetic pipeline (ensure per-slice randomness, rotations/translations are actually applied, and masks are not constant).
+
+What to open in your repo (and what to verify)
+
+If you paste any of these files, I’ll annotate them line-by-line so we can hard-confirm.
+
+Dataset classes
+
+datasets/clinical_supervised.py (or similarly named): H5 reader for your clinical pairs.
+
+Verify: converts 0–255 → /255. to [0,1].
+
+Verify: windowing (if any) is the same as for synthetic clinical.
+
+datasets/syn_deeplesion.py: SynDeepLesion dataset.
+
+Note the tiny numeric range; if you mix loaders in a single training run, add per-dataset normalization to a common scale.
+
+Your new synthetic-clinical dataset (where you saved paired x_art/x_clean or H5 LI_CT/image).
+
+Critical: L is the FBP of metal-corrupted sinogram (windowed HU → [0,1]); H is the original clean (same mapping).
+
+Print ranges and assert L.max()<=1 and H.max()<=1 and that L!=H (PSNR(L,H) should be far from ∞).
+
+Transforms / normalization
+
+data/transforms.py or inline transforms in each dataset.
+
+Ensure the same pipeline (resize 416×416 → window HU → scale to [0,1] → optional mean/std) is applied across all training datasets used for fine-tune.
+
+Training loop / losses / scheduler
+
+train.py (or train_scunet.py).
+
+Confirm you are training on only the synthetic clinical pairs during the fine-tune phase (or, if mixed, weight them carefully).
+
+Loss = L1/Charbonnier on E vs H (not vs L).
+
+LR schedule and total steps look fine from your tensorboard plot; just be sure the data is right.
+
+Model
+
+models/net_scunet.py (or inside KAIR’s models).
+
+1-channel in/out, no surprise here. Just confirm any final activation (if present) doesn’t clip.
+
+Your synthetic generator (Python, ODL/ASTRA)
+
+The script that creates pairs (clean → insert metal → FP → noisy sinogram → FBP → artifact image).
+
+Verify in code:
+
+HU → μ → insert metal (set metal pixels to METAL_MU≈3–4)
+
+FP: s = ray(mu_with_metal)
+
+Poisson noise: s_noisy = add_poisson(I0, s)
+
+FBP: x_art_mu = fbp(s_noisy)
+
+μ → HU → window → [0,1]
+
+Save (L=x_art_norm, H=x_clean_norm).
+
+Three quick sanity blocks you can run today
+
+Drop these where you build your fine-tune dataset.
+
+1) Pair sanity (same index)
+
+# after __getitem__
+import torch, torchvision
+L, H = sample['L'], sample['H']     # [1, 416, 416] floats
+assert L.shape == H.shape == (1, 416, 416)
+print('L min/max', L.min().item(), L.max().item())
+print('H min/max', H.min().item(), H.max().item())
+print('Delta abs mean', (L-H).abs().mean().item())
+
+
+Expected: L,H in [0,1]; delta not tiny.
+
+2) Histogram check
+
+import numpy as np
+l = L.numpy().ravel(); h = H.numpy().ravel()
+print('L p1/median/p99', np.percentile(l,[1,50,99]))
+print('H p1/median/p99', np.percentile(h,[1,50,99]))
+
+
+Expected: sensible spread; not everything at ~0.1–0.2 for both.
+
+3) Visual triplet
+
+import matplotlib.pyplot as plt
+plt.figure(figsize=(10,3))
+plt.subplot(1,3,1); plt.imshow(L[0], cmap='gray'); plt.title('L'); plt.axis('off')
+plt.subplot(1,3,2); plt.imshow(H[0], cmap='gray'); plt.title('H'); plt.axis('off')
+plt.subplot(1,3,3); plt.imshow((H[0]-L[0]).abs(), cmap='gray'); plt.title('|H-L|'); plt.axis('off')
+plt.show()
+
+
+You should see clear streaks/differences confined mostly to rays around metal.
+
+If you want me to pin it down fast
+
+Paste these files (or confirm their paths) and I’ll mark the exact lines to change:
+
+datasets/clinical_supervised.py (or whatever loads CLINICAL_SUPERVISED)
+
+the dataset that loads your synthetic clinical pairs (the one you fine-tuned on)
+
+train.py (or the main training script you used for the fine-tune run)
+
+your synthetic generator script (ODL/ASTRA) that writes the fine-tune pairs
+
+With those four, I can point at the precise normalization, pairing, or domain mismatch that’s causing the collapse.
+
+You said:
+Repository overview
+The project contains a tailored version of the KAIR framework for CT artifact removal with SCUNet‑NGSwin. Key components:
+
+Training script (main_train_scunet_ngswin_1.py)
+
+Builds the model from JSON options, handles training/validation splits, and uses ModelPlain for pixel‑wise losses (default L1).
+
+Supports checkpointing, PSNR/SSIM validation, and optional block/pipeline overrides.
+
+Dataset loaders (data/dataset_scunet_ngswin.py)
+
+BaseCTDataset walks a root directory looking for numeric slice .h5 files and pairs each with a sibling gt.h5.
+
+DatasetLICT and DatasetMACT specify the HDF5 keys (LI_CT or ma_CT → image).
+
+DatasetNIINCT loads .nii files for inference-only.
+
+Images are normalized to [0,1] and resized to 416×416.
+
+Synthetic dataset generator (create_supervised_clinical_dataset.py)
+
+Loads configuration from clinical_config.yaml.
+
+Step 1 – Classify slices
+
+Uses thresholds (2000/2500 HU) and connected‑component filtering (classify_image_adn) to separate clean vs. artifact slices from .nii volumes.
+
+derive_metal_mask_uint8 can generate a mask for visualization, though it is not directly used later.
+
+Step 2 – Artifact synthesis
+
+For each clean slice, create_artifact_synthesis fabricates artifacts.
+
+When ODL/ASTRA is available, _synthesize_physics_artifact builds a geometric metal mask (create_synthetic_metal_mask), performs forward projection, adds Poisson noise, detector clipping, optional smear, and reconstructs with filtered back‑projection.
+
+Without ODL, it falls back to a simplified noise‑based corruption.
+
+Step 3 – Pair saving
+
+save_pairs_as_h5_folders writes each (artifact, clean) pair into /<case>/<slice>.h5 (input key LI_CT) and gt.h5 (GT key image).
+
+Step 4 – Artifact‑only test set
+
+Optionally saves slices flagged as artifacts into a separate “metal‑artifact‑only” dataset for evaluation.
+
+Configuration (clinical_config.yaml)
+
+Specifies paths, ADN thresholds, target size, random seeds, and projection‑domain controls (Poisson noise, detector clipping, trace dilation, etc.).
+
+Summary of the data pipeline
+Input: .nii volumes containing clinical CT slices.
+
+Classification: Slices exceeding HU thresholds or connected‑component size are labeled as artifacts; others are considered clean.
+
+Synthetic mask generation: For each clean slice, random shapes (circles/ellipses/rectangles) create a metal mask.
+
+Artifact insertion: Forward project the mask, apply physical effects, reconstruct to yield an artifact‑corrupted image.
+
+Pair assembly: Each synthetic artifact slice is stored with its clean counterpart in per‑slice HDF5 folders ready for DatasetLICT/DatasetMACT.
+
+Optional outputs: PNG thumbnails, artifact‑only datasets, manifests listing source file paths.
+
+Observations & potential pitfalls
+The mask derivation function exists but isn’t integrated into the main pipeline; only synthetic geometric masks are used.
+
+Falling back to simple noise when ODL is unavailable may produce unrealistic artifacts.
+
+The classification thresholds and connected‑component criteria are critical—mis‑tuning could incorrectly split clean/artifact slices.
+ChatGPT said:
+Thought for 1m 10s
+
+Perfect—your summary matches what I inferred. I’m on the same page about the repo layout and the fine-tune plan. Given the failure mode (the “same gray oval” output on many slices), here’s what I’d check/fix in your repo, file by file, plus the fastest sanity code to add so we catch the bug immediately.
+
+Most likely root cause (ranked)
+
+Pair swap or mis-alignment in the synthetic clinical pairs → network learns to reproduce artifacts (your outputs look worse and very similar across slices).
+
+Normalization/domain mismatch between generator output and what the dataset loader expects (μ vs HU vs windowing vs [0,1]).
+
+Low diversity / nearly constant metal mask placement in _synthesize_physics_artifact.
+
+Overaggressive projection parameters (metal μ or I0) producing an almost fixed FBP shading pattern.
+
+Exactly where to look (and what to verify)
+1) create_supervised_clinical_dataset.py
+
+_synthesize_physics_artifact
+
+After FBP, you’re in μ. Convert back to HU, then window (e.g., [-175, 275]) and scale to 0–255 exactly like your supervised clinical set.
+
+Ensure metal value: METAL_MU in a realistic band (≈3–4). Clamp detector values; Poisson with I0≈1e5. Log these.
+
+save_pairs_as_h5_folders
+
+Make 100% sure you write:
+
+/<case>/<slice>.h5 with key LI_CT = artifact (uint8 0–255).
+
+/<case>/gt.h5 with key image = clean (uint8 0–255).
+
+Add guards here (see “Sanity code” below).
+
+Pitfall I’ve seen: mixing up “artifact” and “clean” when writing H5. The outputs you showed are exactly what you get when training on swapped pairs—model learns to paint the artifact template.
+
+2) data/dataset_scunet_ngswin.py
+
+BaseCTDataset.__getitem__
+
+Confirm it reads LI_CT for input and image for target.
+
+It should then scale uint8 → float32/255.0 to [0,1] for both.
+
+Add asserts that L!=H and both are in [0,1].
+
+DatasetLICT / DatasetMACT
+
+Double-check which one your fine-tune options pick. If a class expects ma_CT but your files use LI_CT, you’ll silently get zeros/constant ranges.
+
+3) main_train_scunet_ngswin_1.py
+
+Confirm the fine-tune run actually points to the synthetic clinical root, not the SynDeepLesion or an inference-only NIfTI set.
+
+Ensure loss is L1(E, H) (not L1(E, L)).
+
+Log a few (L, E, H) triplets to TensorBoard every N iters.
+
+4) clinical_config.yaml
+
+Keep windowing & scale consistent with your clinical supervised set (the one that validated as L∈[0,1], H∈[0,0.6]).
+
+Physics knobs to try if artifacts look “fixed”:
+
+metal_mu_range: [3.0, 4.0]
+
+num_implants: 1–3
+
+poisson_I0: 1e5
+
+random translation/rotation of the mask each slice
+
+trace_dilation: 1–2 px, not huge
+
+Drop-in sanity code (add now)
+A) In save_pairs_as_h5_folders (right before writing)
+def _to_uint8_255(x_f32):
+    x = np.clip(x_f32, 0, 1)
+    return (x * 255.0 + 0.5).astype(np.uint8)
+
+# L = artifact (after μ→HU→window→[0,1]); H = clean ([0,1])
+assert L.dtype in (np.float32, np.float64) and H.dtype in (np.float32, np.float64)
+assert 0.0 <= L.min() <= 1.0 and 0.0 <= L.max() <= 1.0
+assert 0.0 <= H.min() <= 1.0 and 0.0 <= H.max() <= 1.0
+
+delta = np.mean(np.abs(L - H))
+assert delta > 0.02, f"Suspiciously small difference (delta={delta:.4f})—are pairs swapped or identical?"
+
+L_u8 = _to_uint8_255(L); H_u8 = _to_uint8_255(H)
+# write LI_CT=L_u8, image=H_u8
+
+B) In BaseCTDataset.__getitem__ (after reading)
+L = L.astype(np.float32) / 255.0
+H = H.astype(np.float32) / 255.0
+
+assert L.shape == H.shape, f"Shape mismatch: {L.shape} vs {H.shape}"
+assert 0 <= L.min() and L.max() <= 1 and 0 <= H.min() and H.max() <= 1
+diff = np.mean(np.abs(L - H))
+assert diff > 0.02, f"[{self.items[idx]}] L and H are nearly identical (mean|L-H|={diff:.4f})"
+
+C) Quick visual hook in training (every N iters)
+
+Save one triplet (L, E, H) and a heatmap |H−E| so you catch swaps instantly.
+
+If pairs aren’t swapped and ranges are OK, diversify masks
+
+In _synthesize_physics_artifact:
+
+Sample position uniformly over the body mask.
+
+Apply small rotation ±15°, scale 0.8–1.2.
+
+Vary number of implants 1–3, each 3–8 mm radius (in pixels: use your imPixScale).
+
+Randomize METAL_MU in [3.0, 4.0].
+
+Keep Poisson I0 fixed initially (1e5), then tune.
+
+Also add an outside-metal identity loss during fine-tuning (if you save the mask):
+
+L_total = L1(E, H) + λ * L1(E * (1−M), L * (1−M))      # λ ≈ 0.1–0.2
+
+
+Prevents the network from smearing the whole abdomen.
+
+What I’d like to see (if you want me to pin the exact lines)
+
+Paste these four files and I’ll mark the exact fixes inline:
+
+create_supervised_clinical_dataset.py (the functions that return L/H and write H5)
+
+data/dataset_scunet_ngswin.py (BaseCTDataset + the class you use for fine-tune)
+
+main_train_scunet_ngswin_1.py (dataset options for the fine-tune run)
+
+Your clinical_config.yaml (the physics params you used)
+
+Given your screenshots, pair-swap or range mismatch is still my #1 bet. The asserts above will expose that immediately; if they pass, we’ll hard-focus on the physics/mask diversity next.
+
+You said:
+https://github.com/mpat247/SCUNet-NGSWIN
+
+look through this agan udnernatnd everythign and lets get on the same page once it for all ocompeletly 
+ChatGPT said:
+Thought for 1m 39s
+
+got it — let me lock in the full picture so we’re talking about the same pipeline end-to-end, and then I’ll point to the exact spots that are most likely causing your “same gray blob” failures.
+
+what your repo/pipeline is doing (as we’ve been using it)
+
+goal
+
+pretrain SCUNet-NGSwin on SynDeepLesion
+
+fine-tune on paired clinical data that you create by:
+clean clinical slice → synthesize metal artifacts → paired (L=input with artifacts, H=clean)
+
+evaluate on real clinical slices with metal
+
+code pieces you’ve shown / referenced
+
+prepare_spineweb.py (+ config/dataset.yaml → spineweb block)
+splits NIfTI volumes into artifact vs no_artifact using HU thresholds and connected-component size, saves slices as .npy + thumbnails.
+
+build_geometry.py + dataset_py_640geo.yaml
+ODL/ASTRA fan-beam geometry (416×416, 640 views) and FBP operator.
+
+preprocessing_clinic.py (InDuDoNet style)
+for real-metal volumes: makes metal masks via 2500 HU, computes sinogram, LI fill, and reconstructs XLI. (This is removal support, not synthesis.)
+
+(in your repo) a generator script (you’ve been running variants of this) that:
+
+loads clean clinical slices
+
+creates a synthetic metal mask (simple shapes or templates)
+
+inserts metal in μ domain, forward-projects with ODL, adds Poisson, reconstructs with FBP
+
+saves per-slice H5 pairs: LI_CT (input) and image (target)
+
+(optional) exports an artifact-only test set
+
+dataloaders (SCUNet-NGSwin)
+read .h5 pairs: L = LI_CT, H = image, resize to 416×416, normalize to [0,1].
+
+training entry (SCUNet-NGSwin)
+fine-tunes SCUNet with L1 loss on pixel space; logs G_loss + LR; does PSNR/SSIM on a held-out set.
+
+your dataset validator output (you pasted)
+
+CLINICAL_SUPERVISED (your paired clinical):
+
+L range [0.0000, 1.0000]
+
+H range [0.0000, 0.6000]
+
+shapes are [1, 416, 416]
+
+13,438 train pairs (nice)
+
+SynDeepLesion (pretrain data):
+
+tiny ranges around ~0.0–0.003 (expected for that pipeline)
+
+Clinical NIfTI inference set: L and H identical (as expected)
+
+your results
+
+after the “paired clinical” fine-tune, many outputs look very similar across different inputs (that soft circular blob w/ speckles), and often wrong (overly smoothed + structure drift).
+
+training curve: G_loss steadily drops; LR decays late — so optimization is “working”, but learning the wrong mapping.
+
+why the outputs collapse / look same (most likely causes)
+
+scale mismatch between L and H in your clinical pairs
+
+your validator shows L ∈ [0,1] but H ∈ [0,~0.6].
+
+with pure L1, the network can minimize loss by shrinking contrast / predicting a mid-gray “average” look → the blob you’re seeing.
+
+pretraining on SynDeepLesion (values around 1e-3) makes this worse: weights expect tiny dynamic ranges, then you feed full-scale clinical 0..1 → layers saturate / learn a bland bias.
+
+domain gap in the artifact simulator
+
+if the synthetic metal shapes are simple circles/ellipses at a few fixed intensities/positions, the net can memorize their average imprint → similar outputs everywhere.
+
+forward-projection/FBP settings (I0, filter, windowing) and HU→μ→HU/8-bit conversions must match the exact windowing you use for H. Any mismatch yields a consistent, wrong appearance the net happily learns.
+
+pair/loader mistakes (easy to miss)
+
+wrong HDF5 key, or inconsistent scaling between LI_CT and image only in the clinical set.
+
+unintended data leakage where the same H is used for many L (e.g., a constant gt.h5 per folder). Your “same-ish output” smell is consistent with this.
+
+no outside-metal constraint
+
+the model can change everything to reduce L1. Without a mask penalty, anatomy outside the trace drifts.
+
+concrete fixes (no guesswork, all actionable)
+A) make L and H scales identical in your paired-clinical set
+
+Generator (where you save H5):
+
+choose one pathway and stick to it for both L and H:
+
+Option 1 (recommended): save float32 HU in a consistent window (e.g., [-1000, 3000]) and let the dataset do the same window→normalize→[0,1] for L and H.
+
+Option 2: convert both to uint8 [0,255] by the same window, then dataset divides by 255 for both.
+
+Dataloader check (one line to enforce equal scaling):
+
+# after loading L, H as float32
+if L.max() > 1.5 or H.max() > 1.5:  # probably HU
+    # same window for both
+    L = np.clip(L, -1000, 3000)
+    H = np.clip(H, -1000, 3000)
+    L = (L + 1000) / 4000.0
+    H = (H + 1000) / 4000.0
+
+
+Then verify with your validator that both report the same range (ideally [0,1] for both).
+
+B) two sanity trainings (fast)
+
+identity overfit: create a toy dataset where L == H (copy your clean H into L). Train for 500–2000 iters.
+
+If outputs don’t copy inputs almost perfectly → something’s wrong in loss, dataloader pairing, or normalization.
+
+8-pair overfit: pick 8 synthesized pairs, train until loss ≪ baseline.
+
+If it still makes blobs → your synthesis scale or keys are wrong.
+
+C) outside-metal consistency loss (stops anatomy drift)
+
+During fine-tune, compute a binary metal mask M for each synthetic L (you have it). Add:
+
+loss_out = L1( (1-M)*E, (1-M)*H )   # E=model output
+loss = L1(E, H) + λ * loss_out      # try λ = 1.0 first
+
+
+This alone usually kills that global “muddy” look.
+
+D) tighten the simulator to clinical
+
+use real masks: extract masks from your training clinical artifact slices (not your final test patients) instead of toy circles. (You already have the threshold + min-area code; just save those masks and sample them.)
+
+randomize realistically: slight rotations, translations, small radius changes; mix a few METAL_μ values (e.g., 3–6×μ_water); vary I0 (e.g., 5e4–2e5).
+
+single windowing path: μ → HU → window [-1000, 3000] → convert to the exact same format you use for H.
+
+E) verify pairing on disk
+
+For 50 random indices, render (L, H, |L-H|) from the H5 that the training uses (not the PNGs you made elsewhere). If |L−H| is huge everywhere (not just near the trace), you’ve got a scale or pairing bug.
+
+(I can give you a 20-line script to do this if you want it next.)
+
+where to look/change in your codebase
+
+These are the places that typically control the behaviour we care about. If any names differ slightly in your repo, they’ll be very close:
+
+dataset writer (clinical pairs)
+The script that calls ODL, inserts metal, and saves H5.
+What to check:
+
+the conversion HU↔μ for both L and H
+
+the window/normalization you apply before saving
+
+the HDF5 keys: LI_CT for input, image for target
+
+that gt.h5 is per-slice (not one per volume reused!)
+
+data/dataset_scunet_ngswin.py (or similarly named)
+What to check:
+
+both L and H go through the same resize + normalization
+
+keys match the writer (LI_CT, image)
+
+no extra per-dataset scaling sneaking in for clinical
+
+trainer (main_train_scunet_ngswin_*.py)
+What to check:
+
+it’s really using your clinical dataset for fine-tune stage
+
+LR and optimizer are reasonable (your LR plot looked fine)
+
+add the mask loss hook here (Section C)
+
+geometry (build_geometry.py)
+What to check:
+
+matches your 416×416 config; stays in μ during projection; reconstruction returns μ, then you convert to HU/window once.
+
+why I think this explains your images
+
+Your “good pretrain” examples from SynDeepLesion look reasonable (Input → Enhanced ≈ Target).
+
+After clinical fine-tune on your synthesized pairs, “Enhanced” becomes a similar dull look across many different inputs. That’s classic range mismatch + weak supervision: the model learns a cheap average solution that minimizes L1 because H is compressed while L isn’t.
+
+Some panels show strong, repeating texture in the same region — that’s exactly what happens when the simulator has limited variety (or when normalization is applied inconsistently so the network learns the wrong bias).
+
+Fix A (same scaling both sides) + Fix C (outside-metal loss) usually make the problem disappear in a day.
+
+if you want me to review exact files next
+
+Paste (or point me to) these, and I’ll mark the exact lines to change:
+
+your clinical pair writer (the script that saves H5 pairs)
+
+data/dataset_scunet_ngswin.py (or whatever your Dataset classes live in)
+
+the train options JSON you use for clinical fine-tune
+
+the training entry main_train_scunet_ngswin_*.py you actually ran
+
+I’ll annotate where to fix scaling, where to add the mask loss, and how to sanity-test pairing from disk.
+
+take htis all into your context ,and tell me hwat it is teling me to do her, to improve and fix the results here 

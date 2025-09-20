@@ -66,6 +66,10 @@ DATASET_MAP = {
     'nii_ct'                 : ('data.dataset_scunet_ngswin', 'DatasetNIINCT'),
     'clinical_supervised'    : ('data.dataset_scunet_ngswin', 'DatasetLICT'),  # Your new supervised clinical dataset
     'clinical_training'      : ('data.dataset_scunet_ngswin', 'DatasetClinicalTrain'),
+    
+    # ─── ADN Synthetic Transfer Dataset ─────────────────────────────────────
+    'synthetic_transfer'     : ('data.dataset_scunet_ngswin', 'DatasetSyntheticTransfer'),
+    'adn_transfer'          : ('data.dataset_scunet_ngswin', 'DatasetSyntheticTransfer'),
 
     # ─── Custom datasets ─────────────────────────────────────────────────────
     'custom'                 : ('data.dataset_custom',        'DatasetCustom'),
