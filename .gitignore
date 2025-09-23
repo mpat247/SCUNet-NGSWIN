@@ -26,6 +26,17 @@ KAIR/training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_
 !KAIR/training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/models/psnr_E.pth
 !KAIR/training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/models/psnr_G.pth
 
+# Ignore tensorboard files and other training artifacts
+KAIR/training_results/**/tensorboard/
+KAIR/training_results/**/images/
+*.log
+*.pt
+*.pth
+!**/psnr_E.pth
+!**/psnr_G.pth
+
+# Ignore ADN runs directory
+adn/runs/
 
 # Dataset files (common formats)
 *.h5
