@@ -47,6 +47,7 @@ from inference_utils.dataset_processing import (
     process_clinical_dataset_no_masks,
     process_clinical_artifact_only_dataset
 )
+from inference_utils.uwspine_dataset_processing import process_uwspine_synthetic_transfer_dataset
 from inference_utils.visualization import create_comprehensive_analysis
 
 class ResultsConfig:
@@ -175,7 +176,8 @@ class InteractiveCLI:
             'original_data': '/home/Drive-D/SynDeepLesion/test_640geo',
             'clinical_data': '/home/Drive-D/clinical_metal',
             'clinical_masks': '/home/Drive-D/clinical_metal_mask',
-            'clinical_artifact_only': '/home/Drive-D/clincial_metal_test_Metal_artifact_only/test'
+            'clinical_artifact_only': '/home/Drive-D/clincial_metal_test_Metal_artifact_only/test',
+            'uwspine_data': '/home/Drive-D/UWSpine_adn'
         }
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.results_config = ResultsConfig()  # Default configuration
@@ -437,10 +439,12 @@ class InteractiveCLI:
             "Original dataset only (test_640geo)",
             "Clinical dataset only (no masks)", 
             "Clinical artifact-only dataset (test set)",
+            "UWSpine synthetic transfer dataset",
             "Original + Clinical datasets",
-            "Original + Clinical artifact-only datasets", 
-            "Clinical + Clinical artifact-only datasets",
-            "All three datasets",
+            "Original + UWSpine datasets",
+            "Clinical + UWSpine datasets",
+            "Original + Clinical + UWSpine datasets",
+            "All available datasets",
             "Custom dataset paths"
         ]
         
@@ -454,9 +458,11 @@ class InteractiveCLI:
             'test_original': False,
             'test_clinical': False,
             'test_clinical_artifact_only': False,
+            'test_uwspine': False,
             'original_path': self.default_paths['original_data'],
             'clinical_path': self.default_paths['clinical_data'],
-            'clinical_artifact_only_path': self.default_paths['clinical_artifact_only']
+            'clinical_artifact_only_path': self.default_paths['clinical_artifact_only'],
+            'uwspine_path': self.default_paths['uwspine_data']
         }
         
         if choice == 1:  # Original only
@@ -465,20 +471,27 @@ class InteractiveCLI:
             datasets['test_clinical'] = True
         elif choice == 3:  # Clinical artifact-only only
             datasets['test_clinical_artifact_only'] = True
-        elif choice == 4:  # Original + Clinical
+        elif choice == 4:  # UWSpine only
+            datasets['test_uwspine'] = True
+        elif choice == 5:  # Original + Clinical
             datasets['test_original'] = True
             datasets['test_clinical'] = True
-        elif choice == 5:  # Original + Clinical artifact-only
+        elif choice == 6:  # Original + UWSpine
             datasets['test_original'] = True
-            datasets['test_clinical_artifact_only'] = True
-        elif choice == 6:  # Clinical + Clinical artifact-only
+            datasets['test_uwspine'] = True
+        elif choice == 7:  # Clinical + UWSpine
+            datasets['test_clinical'] = True
+            datasets['test_uwspine'] = True
+        elif choice == 8:  # Original + Clinical + UWSpine
+            datasets['test_original'] = True
+            datasets['test_clinical'] = True
+            datasets['test_uwspine'] = True
+        elif choice == 9:  # All datasets
+            datasets['test_original'] = True
             datasets['test_clinical'] = True
             datasets['test_clinical_artifact_only'] = True
-        elif choice == 7:  # All three
-            datasets['test_original'] = True
-            datasets['test_clinical'] = True
-            datasets['test_clinical_artifact_only'] = True
-        elif choice == 8:  # Custom paths
+            datasets['test_uwspine'] = True
+        elif choice == 10:  # Custom paths
             datasets = self.get_custom_paths()
             if not datasets:
                 return None
@@ -492,7 +505,8 @@ class InteractiveCLI:
         datasets = {
             'test_original': False, 
             'test_clinical': False, 
-            'test_clinical_artifact_only': False
+            'test_clinical_artifact_only': False,
+            'test_uwspine': False
         }
         
         # Original dataset
@@ -539,8 +553,24 @@ class InteractiveCLI:
                     print(f"❌ Path not found: {path}")
                     if not self.get_yes_no("Try again?"):
                         break
+
+        # UWSpine dataset  
+        if self.get_yes_no("🦴 Test UWSpine synthetic transfer dataset?"):
+            while True:
+                path = input(f"📂 UWSpine dataset path [{self.default_paths['uwspine_data']}]: ").strip()
+                if not path:
+                    path = self.default_paths['uwspine_data']
+                if os.path.exists(path):
+                    datasets['uwspine_path'] = path
+                    datasets['test_uwspine'] = True
+                    break
+                else:
+                    print(f"❌ Path not found: {path}")
+                    if not self.get_yes_no("Try again?"):
+                        break
                         
-        if not any([datasets['test_original'], datasets['test_clinical'], datasets['test_clinical_artifact_only']]):
+        if not any([datasets['test_original'], datasets['test_clinical'], 
+                   datasets['test_clinical_artifact_only'], datasets['test_uwspine']]):
             print("❌ No datasets selected!")
             return None
             
@@ -676,6 +706,8 @@ class InteractiveCLI:
             print(f"   • Clinical: {datasets['clinical_path']}")
         if datasets['test_clinical_artifact_only']:
             print(f"   • Clinical Artifact-Only: {datasets['clinical_artifact_only_path']}")
+        if datasets['test_uwspine']:
+            print(f"   • UWSpine Synthetic Transfer: {datasets['uwspine_path']}")
             
         print(f"\n📂 Output folder:")
         print(f"   • Path: {os.path.basename(output_info['path'])}")
@@ -751,6 +783,21 @@ class InteractiveCLI:
                     print(f"✅ Clinical artifact-only dataset completed - {clinical_artifact_results['total_samples']} images processed")
                 except Exception as e:
                     print(f"❌ Clinical artifact-only dataset failed: {e}")
+
+            # Test UWSpine synthetic transfer dataset
+            if datasets['test_uwspine']:
+                print(f"\n🦴 Testing UWSpine synthetic transfer dataset...")
+                try:
+                    uwspine_results = process_uwspine_synthetic_transfer_dataset(
+                        model, datasets['uwspine_path'], output_dir, self.device, variant, metrics_only=False
+                    )
+                    results['uwspine_synthetic_transfer'] = uwspine_results
+                    if 'average_psnr' in uwspine_results:
+                        print(f"✅ UWSpine dataset completed - PSNR: {uwspine_results['average_psnr']:.4f} dB, SSIM: {uwspine_results['average_ssim']:.6f}")
+                    else:
+                        print(f"✅ UWSpine dataset completed - {uwspine_results['total_samples']} samples processed")
+                except Exception as e:
+                    print(f"❌ UWSpine dataset failed: {e}")
                     
             # Clear GPU memory
             del model

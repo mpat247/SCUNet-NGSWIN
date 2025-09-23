@@ -22,6 +22,11 @@ KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_fi
 !KAIR/training_results/conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned_400k/models/psnr_G.pth
 
 
+KAIR/training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/models/*
+!KAIR/training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/models/psnr_E.pth
+!KAIR/training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/models/psnr_G.pth
+
+
 # Dataset files (common formats)
 *.h5
 *.hdf5

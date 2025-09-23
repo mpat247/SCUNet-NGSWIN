@@ -22,8 +22,8 @@
       "dataset_type": "synthetic_transfer",
 "dataroot_H": "/home/Drive-D/UWSpine_adn",
       "dataloader_shuffle": true,
-      "dataloader_num_workers": 4,
-      "dataloader_batch_size": 2,
+      "dataloader_num_workers": 8,
+      "dataloader_batch_size": 4,
       "phase": "train",
       "scale": 1,
       "n_channels": 1

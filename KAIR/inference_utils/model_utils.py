@@ -48,6 +48,13 @@ def get_model_variant_configs():
             'block_variant': 'trans_nstb', 
             'task_name': 'scunet_ngswin_trans_nstb'
         },
+        'synthetic_transfer_finetune': {
+            'path': 'synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune',
+            'display_name': 'Conv Trans Nstb (UWSpine Synthetic Transfer Finetuned)',
+            'base_config': 'train_scunet_ngswin_finetune_synthetic_transfer.json',
+            'block_variant': 'conv_trans_nstb',
+            'task_name': 'scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune'
+        },
         'conv_trans_nstb_finetuned': {
             'path': 'conv_trans_nstb_finetuned/scunet_ngswin_conv_trans_nstb_finetuned',
             'display_name': 'Conv Trans Nstb (Finetuned Li_CT)',

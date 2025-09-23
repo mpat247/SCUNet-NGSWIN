@@ -2596,3 +2596,1355 @@ SCUNet_NGSwin(
 25-09-19 21:08:24.987 : Iterations per epoch: 9,536
 25-09-19 21:08:24.987 : Current step: 0
 25-09-19 21:08:24.987 : Starting from epoch: 1
+25-09-20 17:49:30.980 :   task: scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune
+  model: scunet_ngswin
+  gpu_ids: [0]
+  dist: False
+  scale: 1
+  n_channels: 1
+  path:[
+    root: training_results/synthetic_transfer_finetune
+    task: training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune
+    log: training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune
+    options: training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/options
+    models: training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/models
+    images: training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/images
+    pretrained_netG: None
+    pretrained_netE: None
+    pretrained_optimizerG: None
+  ]
+  datasets:[
+    train:[
+      name: uwspine_synthetic_transfer_train
+      dataset_type: synthetic_transfer
+      dataroot_H: /home/Drive-D/UWSpine_adn
+      dataloader_shuffle: True
+      dataloader_num_workers: 8
+      dataloader_batch_size: 4
+      phase: train
+      scale: 1
+      n_channels: 1
+    ]
+    test:[
+      name: uwspine_synthetic_transfer_test
+      dataset_type: synthetic_transfer
+      dataroot_H: /home/Drive-D/UWSpine_adn
+      phase: test
+      scale: 1
+      n_channels: 1
+    ]
+  ]
+  netG:[
+    net_type: scunet_ngswin
+    in_nc: 1
+    out_nc: 1
+    config: [1, 1, 1, 1, 1, 1, 1]
+    dim: 32
+    drop_path_rate: 0.0
+    input_resolution: 512
+    block_variant: conv_trans_nstb
+    init_type: kaiming_normal
+    init_bn_type: constant
+    init_gain: 1.0
+    scale: 1
+  ]
+  train:[
+    G_lossfn_type: l1
+    G_lossfn_weight: 1.0
+    E_decay: 0.999
+    G_optimizer_type: adam
+    G_optimizer_lr: 5e-05
+    G_optimizer_wd: 0
+    G_optimizer_betas: [0.9, 0.999]
+    G_optimizer_reuse: False
+    G_scheduler_type: MultiStepLR
+    G_scheduler_milestones: [50000, 100000, 150000, 200000]
+    G_scheduler_gamma: 0.5
+    G_param_strict: True
+    E_param_strict: True
+    checkpoint_test: 10000
+    checkpoint_save: 5000
+    checkpoint_print: 1000
+    use_fp16: True
+    test_both_checkpoints: True
+    test_save_every_nth: 50
+    F_feature_layer: 34
+    F_weights: 1.0
+    F_lossfn_type: l1
+    F_use_input_norm: True
+    F_use_range_norm: False
+    G_scheduler_restart_weights: 1
+  ]
+  opt_path: options/train_scunet_ngswin_finetune_synthetic_transfer.json
+  is_train: True
+  merge_bn: False
+  merge_bn_startpoint: -1
+  find_unused_parameters: False
+  use_static_graph: False
+  num_gpu: 1
+  device: cuda
+
+25-09-20 17:49:30.980 : Using device: cuda
+25-09-20 17:49:31.463 : Total samples: 21,190 | Train: 19,071 (90.0%) | Validation: 2,119 (10.0%)
+25-09-20 17:49:31.463 : Training iters per epoch: 4,768
+25-09-20 17:49:31.568 : Test set samples: 4,940
+25-09-20 17:49:32.838 : 
+Networks name: SCUNet_NGSwin
+Params number: 6881982
+Net structure:
+SCUNet_NGSwin(
+  (m_head): Sequential(
+    (0): Conv2d(1, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  )
+  (m_down1): Sequential(
+    (0): ConvTransNSTBBlock(
+      (conv1_1): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+      (conv_block): Sequential(
+        (0): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (1): ReLU(inplace=True)
+        (2): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      )
+      (trans_block): Block(
+        (ln1): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+        (msa): WMSA(
+          (embedding_layer): Linear(in_features=32, out_features=96, bias=True)
+          (linear): Linear(in_features=32, out_features=32, bias=True)
+        )
+        (drop_path): Identity()
+        (ln2): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (0): Linear(in_features=32, out_features=128, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=128, out_features=32, bias=True)
+        )
+      )
+      (nstb_block): NSTB(
+        (ngram_window_partition): NGramWindowPartition(
+          (ngram_context): NGramContext(
+            (unigram_embed): Conv2d(32, 16, kernel_size=(8, 8), stride=(8, 8), groups=16)
+            (ngram_attn): WindowAttention(
+              (qkv): Linear(in_features=16, out_features=48, bias=True)
+              (attn_drop): Dropout(p=0.0, inplace=False)
+              (proj): Linear(in_features=16, out_features=16, bias=True)
+              (proj_drop): Dropout(p=0.0, inplace=False)
+              (softmax): Softmax(dim=-1)
+            )
+            (avg_pool): AvgPool2d(kernel_size=2, stride=2, padding=0)
+            (merge): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))
+          )
+        )
+        (attn): WindowAttention(
+          (qkv): Linear(in_features=32, out_features=96, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=32, out_features=32, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+          (softmax): Softmax(dim=-1)
+        )
+        (norm1): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+        (drop_path): Identity()
+        (ffn): Mlp(
+          (fc1): Linear(in_features=32, out_features=64, bias=True)
+          (act): GELU(approximate='none')
+          (drop1): Dropout(p=0.0, inplace=False)
+          (norm): Identity()
+          (fc2): Linear(in_features=64, out_features=32, bias=True)
+          (drop2): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+      )
+      (conv1_2): Conv2d(96, 64, kernel_size=(1, 1), stride=(1, 1))
+    )
+    (1): Conv2d(64, 128, kernel_size=(2, 2), stride=(2, 2), bias=False)
+  )
+  (m_down2): Sequential(
+    (0): ConvTransNSTBBlock(
+      (conv1_1): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+      (conv_block): Sequential(
+        (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (1): ReLU(inplace=True)
+        (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      )
+      (trans_block): Block(
+        (ln1): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+        (msa): WMSA(
+          (embedding_layer): Linear(in_features=64, out_features=192, bias=True)
+          (linear): Linear(in_features=64, out_features=64, bias=True)
+        )
+        (drop_path): Identity()
+        (ln2): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (0): Linear(in_features=64, out_features=256, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=256, out_features=64, bias=True)
+        )
+      )
+      (nstb_block): NSTB(
+        (ngram_window_partition): NGramWindowPartition(
+          (ngram_context): NGramContext(
+            (unigram_embed): Conv2d(64, 32, kernel_size=(8, 8), stride=(8, 8), groups=32)
+            (ngram_attn): WindowAttention(
+              (qkv): Linear(in_features=32, out_features=96, bias=True)
+              (attn_drop): Dropout(p=0.0, inplace=False)
+              (proj): Linear(in_features=32, out_features=32, bias=True)
+              (proj_drop): Dropout(p=0.0, inplace=False)
+              (softmax): Softmax(dim=-1)
+            )
+            (avg_pool): AvgPool2d(kernel_size=2, stride=2, padding=0)
+            (merge): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+          )
+        )
+        (attn): WindowAttention(
+          (qkv): Linear(in_features=64, out_features=192, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=64, out_features=64, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+          (softmax): Softmax(dim=-1)
+        )
+        (norm1): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+        (drop_path): Identity()
+        (ffn): Mlp(
+          (fc1): Linear(in_features=64, out_features=128, bias=True)
+          (act): GELU(approximate='none')
+          (drop1): Dropout(p=0.0, inplace=False)
+          (norm): Identity()
+          (fc2): Linear(in_features=128, out_features=64, bias=True)
+          (drop2): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+      )
+      (conv1_2): Conv2d(192, 128, kernel_size=(1, 1), stride=(1, 1))
+    )
+    (1): Conv2d(128, 256, kernel_size=(2, 2), stride=(2, 2), bias=False)
+  )
+  (m_down3): Sequential(
+    (0): ConvTransNSTBBlock(
+      (conv1_1): Conv2d(256, 256, kernel_size=(1, 1), stride=(1, 1))
+      (conv_block): Sequential(
+        (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (1): ReLU(inplace=True)
+        (2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      )
+      (trans_block): Block(
+        (ln1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (msa): WMSA(
+          (embedding_layer): Linear(in_features=128, out_features=384, bias=True)
+          (linear): Linear(in_features=128, out_features=128, bias=True)
+        )
+        (drop_path): Identity()
+        (ln2): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (0): Linear(in_features=128, out_features=512, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=512, out_features=128, bias=True)
+        )
+      )
+      (nstb_block): NSTB(
+        (ngram_window_partition): NGramWindowPartition(
+          (ngram_context): NGramContext(
+            (unigram_embed): Conv2d(128, 64, kernel_size=(8, 8), stride=(8, 8), groups=64)
+            (ngram_attn): WindowAttention(
+              (qkv): Linear(in_features=64, out_features=192, bias=True)
+              (attn_drop): Dropout(p=0.0, inplace=False)
+              (proj): Linear(in_features=64, out_features=64, bias=True)
+              (proj_drop): Dropout(p=0.0, inplace=False)
+              (softmax): Softmax(dim=-1)
+            )
+            (avg_pool): AvgPool2d(kernel_size=2, stride=2, padding=0)
+            (merge): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+          )
+        )
+        (attn): WindowAttention(
+          (qkv): Linear(in_features=128, out_features=384, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=128, out_features=128, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+          (softmax): Softmax(dim=-1)
+        )
+        (norm1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (drop_path): Identity()
+        (ffn): Mlp(
+          (fc1): Linear(in_features=128, out_features=256, bias=True)
+          (act): GELU(approximate='none')
+          (drop1): Dropout(p=0.0, inplace=False)
+          (norm): Identity()
+          (fc2): Linear(in_features=256, out_features=128, bias=True)
+          (drop2): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+      )
+      (conv1_2): Conv2d(384, 256, kernel_size=(1, 1), stride=(1, 1))
+    )
+    (1): Conv2d(256, 512, kernel_size=(2, 2), stride=(2, 2), bias=False)
+  )
+  (m_body): Sequential(
+    (0): ConvTransNSTBBlock(
+      (conv1_1): Conv2d(512, 512, kernel_size=(1, 1), stride=(1, 1))
+      (conv_block): Sequential(
+        (0): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (1): ReLU(inplace=True)
+        (2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      )
+      (trans_block): Block(
+        (ln1): LayerNorm((256,), eps=1e-05, elementwise_affine=True)
+        (msa): WMSA(
+          (embedding_layer): Linear(in_features=256, out_features=768, bias=True)
+          (linear): Linear(in_features=256, out_features=256, bias=True)
+        )
+        (drop_path): Identity()
+        (ln2): LayerNorm((256,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (0): Linear(in_features=256, out_features=1024, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=1024, out_features=256, bias=True)
+        )
+      )
+      (nstb_block): NSTB(
+        (ngram_window_partition): NGramWindowPartition(
+          (ngram_context): NGramContext(
+            (unigram_embed): Conv2d(256, 128, kernel_size=(8, 8), stride=(8, 8), groups=128)
+            (ngram_attn): WindowAttention(
+              (qkv): Linear(in_features=128, out_features=384, bias=True)
+              (attn_drop): Dropout(p=0.0, inplace=False)
+              (proj): Linear(in_features=128, out_features=128, bias=True)
+              (proj_drop): Dropout(p=0.0, inplace=False)
+              (softmax): Softmax(dim=-1)
+            )
+            (avg_pool): AvgPool2d(kernel_size=2, stride=2, padding=0)
+            (merge): Conv2d(256, 256, kernel_size=(1, 1), stride=(1, 1))
+          )
+        )
+        (attn): WindowAttention(
+          (qkv): Linear(in_features=256, out_features=768, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=256, out_features=256, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+          (softmax): Softmax(dim=-1)
+        )
+        (norm1): LayerNorm((256,), eps=1e-05, elementwise_affine=True)
+        (drop_path): Identity()
+        (ffn): Mlp(
+          (fc1): Linear(in_features=256, out_features=512, bias=True)
+          (act): GELU(approximate='none')
+          (drop1): Dropout(p=0.0, inplace=False)
+          (norm): Identity()
+          (fc2): Linear(in_features=512, out_features=256, bias=True)
+          (drop2): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((256,), eps=1e-05, elementwise_affine=True)
+      )
+      (conv1_2): Conv2d(768, 512, kernel_size=(1, 1), stride=(1, 1))
+    )
+  )
+  (m_up3): Sequential(
+    (0): ConvTranspose2d(512, 256, kernel_size=(2, 2), stride=(2, 2), bias=False)
+    (1): ConvTransNSTBBlock(
+      (conv1_1): Conv2d(256, 256, kernel_size=(1, 1), stride=(1, 1))
+      (conv_block): Sequential(
+        (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (1): ReLU(inplace=True)
+        (2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      )
+      (trans_block): Block(
+        (ln1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (msa): WMSA(
+          (embedding_layer): Linear(in_features=128, out_features=384, bias=True)
+          (linear): Linear(in_features=128, out_features=128, bias=True)
+        )
+        (drop_path): Identity()
+        (ln2): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (0): Linear(in_features=128, out_features=512, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=512, out_features=128, bias=True)
+        )
+      )
+      (nstb_block): NSTB(
+        (ngram_window_partition): NGramWindowPartition(
+          (ngram_context): NGramContext(
+            (unigram_embed): Conv2d(128, 64, kernel_size=(8, 8), stride=(8, 8), groups=64)
+            (ngram_attn): WindowAttention(
+              (qkv): Linear(in_features=64, out_features=192, bias=True)
+              (attn_drop): Dropout(p=0.0, inplace=False)
+              (proj): Linear(in_features=64, out_features=64, bias=True)
+              (proj_drop): Dropout(p=0.0, inplace=False)
+              (softmax): Softmax(dim=-1)
+            )
+            (avg_pool): AvgPool2d(kernel_size=2, stride=2, padding=0)
+            (merge): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+          )
+        )
+        (attn): WindowAttention(
+          (qkv): Linear(in_features=128, out_features=384, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=128, out_features=128, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+          (softmax): Softmax(dim=-1)
+        )
+        (norm1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (drop_path): Identity()
+        (ffn): Mlp(
+          (fc1): Linear(in_features=128, out_features=256, bias=True)
+          (act): GELU(approximate='none')
+          (drop1): Dropout(p=0.0, inplace=False)
+          (norm): Identity()
+          (fc2): Linear(in_features=256, out_features=128, bias=True)
+          (drop2): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+      )
+      (conv1_2): Conv2d(384, 256, kernel_size=(1, 1), stride=(1, 1))
+    )
+  )
+  (m_up2): Sequential(
+    (0): ConvTranspose2d(256, 128, kernel_size=(2, 2), stride=(2, 2), bias=False)
+    (1): ConvTransNSTBBlock(
+      (conv1_1): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+      (conv_block): Sequential(
+        (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (1): ReLU(inplace=True)
+        (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      )
+      (trans_block): Block(
+        (ln1): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+        (msa): WMSA(
+          (embedding_layer): Linear(in_features=64, out_features=192, bias=True)
+          (linear): Linear(in_features=64, out_features=64, bias=True)
+        )
+        (drop_path): Identity()
+        (ln2): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (0): Linear(in_features=64, out_features=256, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=256, out_features=64, bias=True)
+        )
+      )
+      (nstb_block): NSTB(
+        (ngram_window_partition): NGramWindowPartition(
+          (ngram_context): NGramContext(
+            (unigram_embed): Conv2d(64, 32, kernel_size=(8, 8), stride=(8, 8), groups=32)
+            (ngram_attn): WindowAttention(
+              (qkv): Linear(in_features=32, out_features=96, bias=True)
+              (attn_drop): Dropout(p=0.0, inplace=False)
+              (proj): Linear(in_features=32, out_features=32, bias=True)
+              (proj_drop): Dropout(p=0.0, inplace=False)
+              (softmax): Softmax(dim=-1)
+            )
+            (avg_pool): AvgPool2d(kernel_size=2, stride=2, padding=0)
+            (merge): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+          )
+        )
+        (attn): WindowAttention(
+          (qkv): Linear(in_features=64, out_features=192, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=64, out_features=64, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+          (softmax): Softmax(dim=-1)
+        )
+        (norm1): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+        (drop_path): Identity()
+        (ffn): Mlp(
+          (fc1): Linear(in_features=64, out_features=128, bias=True)
+          (act): GELU(approximate='none')
+          (drop1): Dropout(p=0.0, inplace=False)
+          (norm): Identity()
+          (fc2): Linear(in_features=128, out_features=64, bias=True)
+          (drop2): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+      )
+      (conv1_2): Conv2d(192, 128, kernel_size=(1, 1), stride=(1, 1))
+    )
+  )
+  (m_up1): Sequential(
+    (0): ConvTranspose2d(128, 64, kernel_size=(2, 2), stride=(2, 2), bias=False)
+    (1): ConvTransNSTBBlock(
+      (conv1_1): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+      (conv_block): Sequential(
+        (0): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (1): ReLU(inplace=True)
+        (2): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      )
+      (trans_block): Block(
+        (ln1): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+        (msa): WMSA(
+          (embedding_layer): Linear(in_features=32, out_features=96, bias=True)
+          (linear): Linear(in_features=32, out_features=32, bias=True)
+        )
+        (drop_path): Identity()
+        (ln2): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (0): Linear(in_features=32, out_features=128, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=128, out_features=32, bias=True)
+        )
+      )
+      (nstb_block): NSTB(
+        (ngram_window_partition): NGramWindowPartition(
+          (ngram_context): NGramContext(
+            (unigram_embed): Conv2d(32, 16, kernel_size=(8, 8), stride=(8, 8), groups=16)
+            (ngram_attn): WindowAttention(
+              (qkv): Linear(in_features=16, out_features=48, bias=True)
+              (attn_drop): Dropout(p=0.0, inplace=False)
+              (proj): Linear(in_features=16, out_features=16, bias=True)
+              (proj_drop): Dropout(p=0.0, inplace=False)
+              (softmax): Softmax(dim=-1)
+            )
+            (avg_pool): AvgPool2d(kernel_size=2, stride=2, padding=0)
+            (merge): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))
+          )
+        )
+        (attn): WindowAttention(
+          (qkv): Linear(in_features=32, out_features=96, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=32, out_features=32, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+          (softmax): Softmax(dim=-1)
+        )
+        (norm1): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+        (drop_path): Identity()
+        (ffn): Mlp(
+          (fc1): Linear(in_features=32, out_features=64, bias=True)
+          (act): GELU(approximate='none')
+          (drop1): Dropout(p=0.0, inplace=False)
+          (norm): Identity()
+          (fc2): Linear(in_features=64, out_features=32, bias=True)
+          (drop2): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+      )
+      (conv1_2): Conv2d(96, 64, kernel_size=(1, 1), stride=(1, 1))
+    )
+  )
+  (m_tail): Sequential(
+    (0): Conv2d(64, 1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  )
+)
+
+25-09-20 17:49:32.885 : 
+ |  mean  |  min   |  max   |  std   || shape               
+ | -0.003 | -0.333 |  0.333 |  0.191 | torch.Size([64, 1, 3, 3]) || m_head.0.weight
+ |  0.001 | -0.125 |  0.125 |  0.072 | torch.Size([64, 64, 1, 1]) || m_down1.0.conv1_1.weight
+ |  0.004 | -0.125 |  0.125 |  0.080 | torch.Size([64]) || m_down1.0.conv1_1.bias
+ |  0.000 | -0.059 |  0.059 |  0.034 | torch.Size([32, 32, 3, 3]) || m_down1.0.conv_block.0.weight
+ | -0.000 | -0.059 |  0.059 |  0.034 | torch.Size([32, 32, 3, 3]) || m_down1.0.conv_block.2.weight
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_down1.0.trans_block.ln1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_down1.0.trans_block.ln1.bias
+ | -0.001 | -0.052 |  0.079 |  0.019 | torch.Size([1, 15, 15]) || m_down1.0.trans_block.msa.relative_position_params
+ |  0.005 | -0.177 |  0.177 |  0.103 | torch.Size([96, 32]) || m_down1.0.trans_block.msa.embedding_layer.weight
+ | -0.008 | -0.172 |  0.173 |  0.108 | torch.Size([96]) || m_down1.0.trans_block.msa.embedding_layer.bias
+ | -0.001 | -0.177 |  0.176 |  0.103 | torch.Size([32, 32]) || m_down1.0.trans_block.msa.linear.weight
+ |  0.000 | -0.148 |  0.162 |  0.099 | torch.Size([32]) || m_down1.0.trans_block.msa.linear.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_down1.0.trans_block.ln2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_down1.0.trans_block.ln2.bias
+ |  0.001 | -0.176 |  0.177 |  0.102 | torch.Size([128, 32]) || m_down1.0.trans_block.mlp.0.weight
+ |  0.004 | -0.174 |  0.177 |  0.098 | torch.Size([128]) || m_down1.0.trans_block.mlp.0.bias
+ | -0.001 | -0.088 |  0.088 |  0.050 | torch.Size([32, 128]) || m_down1.0.trans_block.mlp.2.weight
+ |  0.008 | -0.082 |  0.086 |  0.053 | torch.Size([32]) || m_down1.0.trans_block.mlp.2.bias
+ | -12.109 | -100.000 |  0.000 | 32.624 | torch.Size([64, 64, 64]) || m_down1.0.nstb_block.attn_mask
+ |  0.001 | -0.088 |  0.088 |  0.051 | torch.Size([16, 2, 8, 8]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.weight
+ |  0.001 | -0.067 |  0.074 |  0.044 | torch.Size([16]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.bias
+ |  2.303 |  2.303 |  2.303 |    nan | torch.Size([1, 1, 1]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.logit_scale
+ | -0.006 | -0.033 |  0.008 |  0.015 | torch.Size([9, 1]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_bias_table
+ |  4.000 |  0.000 |  8.000 |  2.309 | torch.Size([4, 4]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_index
+ | -0.006 | -0.250 |  0.250 |  0.144 | torch.Size([48, 16]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.weight
+ | -0.002 | -0.244 |  0.242 |  0.142 | torch.Size([48]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.bias
+ |  0.000 | -0.249 |  0.246 |  0.147 | torch.Size([16, 16]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.weight
+ | -0.020 | -0.239 |  0.248 |  0.147 | torch.Size([16]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.bias
+ | -0.005 | -0.177 |  0.177 |  0.104 | torch.Size([32, 32, 1, 1]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.merge.weight
+ |  0.004 | -0.173 |  0.168 |  0.102 | torch.Size([32]) || m_down1.0.nstb_block.ngram_window_partition.ngram_context.merge.bias
+ |  2.303 |  2.303 |  2.303 |    nan | torch.Size([1, 1, 1]) || m_down1.0.nstb_block.attn.logit_scale
+ | -0.000 | -0.053 |  0.057 |  0.022 | torch.Size([225, 1]) || m_down1.0.nstb_block.attn.relative_position_bias_table
+ | 112.000 |  0.000 | 224.000 | 48.719 | torch.Size([64, 64]) || m_down1.0.nstb_block.attn.relative_position_index
+ | -0.002 | -0.177 |  0.177 |  0.101 | torch.Size([96, 32]) || m_down1.0.nstb_block.attn.qkv.weight
+ |  0.013 | -0.173 |  0.175 |  0.100 | torch.Size([96]) || m_down1.0.nstb_block.attn.qkv.bias
+ |  0.000 | -0.177 |  0.176 |  0.104 | torch.Size([32, 32]) || m_down1.0.nstb_block.attn.proj.weight
+ | -0.001 | -0.174 |  0.130 |  0.099 | torch.Size([32]) || m_down1.0.nstb_block.attn.proj.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_down1.0.nstb_block.norm1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_down1.0.nstb_block.norm1.bias
+ | -0.002 | -0.177 |  0.177 |  0.102 | torch.Size([64, 32]) || m_down1.0.nstb_block.ffn.fc1.weight
+ |  0.019 | -0.176 |  0.176 |  0.102 | torch.Size([64]) || m_down1.0.nstb_block.ffn.fc1.bias
+ | -0.001 | -0.125 |  0.125 |  0.071 | torch.Size([32, 64]) || m_down1.0.nstb_block.ffn.fc2.weight
+ |  0.012 | -0.099 |  0.106 |  0.060 | torch.Size([32]) || m_down1.0.nstb_block.ffn.fc2.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_down1.0.nstb_block.norm2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_down1.0.nstb_block.norm2.bias
+ | -0.000 | -0.102 |  0.102 |  0.058 | torch.Size([64, 96, 1, 1]) || m_down1.0.conv1_2.weight
+ | -0.008 | -0.101 |  0.101 |  0.063 | torch.Size([64]) || m_down1.0.conv1_2.bias
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([128, 64, 2, 2]) || m_down1.1.weight
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128, 1, 1]) || m_down2.0.conv1_1.weight
+ | -0.007 | -0.088 |  0.088 |  0.051 | torch.Size([128]) || m_down2.0.conv1_1.bias
+ |  0.000 | -0.042 |  0.042 |  0.024 | torch.Size([64, 64, 3, 3]) || m_down2.0.conv_block.0.weight
+ | -0.000 | -0.042 |  0.042 |  0.024 | torch.Size([64, 64, 3, 3]) || m_down2.0.conv_block.2.weight
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_down2.0.trans_block.ln1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_down2.0.trans_block.ln1.bias
+ |  0.000 | -0.053 |  0.057 |  0.020 | torch.Size([2, 15, 15]) || m_down2.0.trans_block.msa.relative_position_params
+ | -0.000 | -0.125 |  0.125 |  0.072 | torch.Size([192, 64]) || m_down2.0.trans_block.msa.embedding_layer.weight
+ |  0.003 | -0.123 |  0.125 |  0.074 | torch.Size([192]) || m_down2.0.trans_block.msa.embedding_layer.bias
+ | -0.000 | -0.125 |  0.125 |  0.071 | torch.Size([64, 64]) || m_down2.0.trans_block.msa.linear.weight
+ | -0.011 | -0.124 |  0.124 |  0.070 | torch.Size([64]) || m_down2.0.trans_block.msa.linear.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_down2.0.trans_block.ln2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_down2.0.trans_block.ln2.bias
+ |  0.001 | -0.125 |  0.125 |  0.072 | torch.Size([256, 64]) || m_down2.0.trans_block.mlp.0.weight
+ |  0.001 | -0.122 |  0.122 |  0.070 | torch.Size([256]) || m_down2.0.trans_block.mlp.0.bias
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([64, 256]) || m_down2.0.trans_block.mlp.2.weight
+ | -0.007 | -0.062 |  0.060 |  0.038 | torch.Size([64]) || m_down2.0.trans_block.mlp.2.bias
+ | -23.438 | -100.000 |  0.000 | 42.361 | torch.Size([16, 64, 64]) || m_down2.0.nstb_block.attn_mask
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([32, 2, 8, 8]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.weight
+ | -0.005 | -0.075 |  0.077 |  0.050 | torch.Size([32]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([2, 1, 1]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.logit_scale
+ |  0.001 | -0.034 |  0.036 |  0.021 | torch.Size([9, 2]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_bias_table
+ |  4.000 |  0.000 |  8.000 |  2.309 | torch.Size([4, 4]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_index
+ | -0.002 | -0.177 |  0.177 |  0.101 | torch.Size([96, 32]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.weight
+ |  0.016 | -0.168 |  0.176 |  0.097 | torch.Size([96]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.bias
+ |  0.001 | -0.177 |  0.176 |  0.106 | torch.Size([32, 32]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.weight
+ |  0.025 | -0.152 |  0.159 |  0.099 | torch.Size([32]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.bias
+ | -0.000 | -0.125 |  0.125 |  0.072 | torch.Size([64, 64, 1, 1]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.merge.weight
+ | -0.007 | -0.118 |  0.125 |  0.074 | torch.Size([64]) || m_down2.0.nstb_block.ngram_window_partition.ngram_context.merge.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([2, 1, 1]) || m_down2.0.nstb_block.attn.logit_scale
+ |  0.001 | -0.052 |  0.061 |  0.020 | torch.Size([225, 2]) || m_down2.0.nstb_block.attn.relative_position_bias_table
+ | 112.000 |  0.000 | 224.000 | 48.719 | torch.Size([64, 64]) || m_down2.0.nstb_block.attn.relative_position_index
+ |  0.001 | -0.125 |  0.125 |  0.072 | torch.Size([192, 64]) || m_down2.0.nstb_block.attn.qkv.weight
+ | -0.001 | -0.124 |  0.123 |  0.073 | torch.Size([192]) || m_down2.0.nstb_block.attn.qkv.bias
+ | -0.000 | -0.125 |  0.125 |  0.073 | torch.Size([64, 64]) || m_down2.0.nstb_block.attn.proj.weight
+ |  0.005 | -0.125 |  0.117 |  0.077 | torch.Size([64]) || m_down2.0.nstb_block.attn.proj.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_down2.0.nstb_block.norm1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_down2.0.nstb_block.norm1.bias
+ |  0.000 | -0.125 |  0.125 |  0.072 | torch.Size([128, 64]) || m_down2.0.nstb_block.ffn.fc1.weight
+ | -0.006 | -0.122 |  0.124 |  0.074 | torch.Size([128]) || m_down2.0.nstb_block.ffn.fc1.bias
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([64, 128]) || m_down2.0.nstb_block.ffn.fc2.weight
+ | -0.007 | -0.086 |  0.086 |  0.050 | torch.Size([64]) || m_down2.0.nstb_block.ffn.fc2.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_down2.0.nstb_block.norm2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_down2.0.nstb_block.norm2.bias
+ |  0.000 | -0.072 |  0.072 |  0.042 | torch.Size([128, 192, 1, 1]) || m_down2.0.conv1_2.weight
+ | -0.001 | -0.072 |  0.071 |  0.042 | torch.Size([128]) || m_down2.0.conv1_2.bias
+ | -0.000 | -0.044 |  0.044 |  0.026 | torch.Size([256, 128, 2, 2]) || m_down2.1.weight
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([256, 256, 1, 1]) || m_down3.0.conv1_1.weight
+ |  0.001 | -0.062 |  0.061 |  0.035 | torch.Size([256]) || m_down3.0.conv1_1.bias
+ | -0.000 | -0.029 |  0.029 |  0.017 | torch.Size([128, 128, 3, 3]) || m_down3.0.conv_block.0.weight
+ | -0.000 | -0.029 |  0.029 |  0.017 | torch.Size([128, 128, 3, 3]) || m_down3.0.conv_block.2.weight
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_down3.0.trans_block.ln1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_down3.0.trans_block.ln1.bias
+ | -0.000 | -0.063 |  0.061 |  0.020 | torch.Size([4, 15, 15]) || m_down3.0.trans_block.msa.relative_position_params
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([384, 128]) || m_down3.0.trans_block.msa.embedding_layer.weight
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([384]) || m_down3.0.trans_block.msa.embedding_layer.bias
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128]) || m_down3.0.trans_block.msa.linear.weight
+ | -0.003 | -0.088 |  0.088 |  0.051 | torch.Size([128]) || m_down3.0.trans_block.msa.linear.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_down3.0.trans_block.ln2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_down3.0.trans_block.ln2.bias
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([512, 128]) || m_down3.0.trans_block.mlp.0.weight
+ | -0.005 | -0.088 |  0.088 |  0.051 | torch.Size([512]) || m_down3.0.trans_block.mlp.0.bias
+ |  0.000 | -0.044 |  0.044 |  0.026 | torch.Size([128, 512]) || m_down3.0.trans_block.mlp.2.weight
+ | -0.002 | -0.044 |  0.044 |  0.025 | torch.Size([128]) || m_down3.0.trans_block.mlp.2.bias
+ | -43.750 | -100.000 |  0.000 | 49.609 | torch.Size([4, 64, 64]) || m_down3.0.nstb_block.attn_mask
+ | -0.001 | -0.088 |  0.088 |  0.051 | torch.Size([64, 2, 8, 8]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.weight
+ | -0.003 | -0.087 |  0.087 |  0.051 | torch.Size([64]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([4, 1, 1]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.logit_scale
+ | -0.002 | -0.041 |  0.041 |  0.022 | torch.Size([9, 4]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_bias_table
+ |  4.000 |  0.000 |  8.000 |  2.309 | torch.Size([4, 4]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_index
+ | -0.000 | -0.125 |  0.125 |  0.073 | torch.Size([192, 64]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.weight
+ | -0.000 | -0.124 |  0.125 |  0.072 | torch.Size([192]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.bias
+ |  0.001 | -0.125 |  0.125 |  0.072 | torch.Size([64, 64]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.weight
+ |  0.005 | -0.120 |  0.123 |  0.077 | torch.Size([64]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.bias
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128, 1, 1]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.merge.weight
+ | -0.006 | -0.086 |  0.088 |  0.052 | torch.Size([128]) || m_down3.0.nstb_block.ngram_window_partition.ngram_context.merge.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([4, 1, 1]) || m_down3.0.nstb_block.attn.logit_scale
+ | -0.000 | -0.065 |  0.057 |  0.020 | torch.Size([225, 4]) || m_down3.0.nstb_block.attn.relative_position_bias_table
+ | 112.000 |  0.000 | 224.000 | 48.719 | torch.Size([64, 64]) || m_down3.0.nstb_block.attn.relative_position_index
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([384, 128]) || m_down3.0.nstb_block.attn.qkv.weight
+ |  0.001 | -0.088 |  0.088 |  0.051 | torch.Size([384]) || m_down3.0.nstb_block.attn.qkv.bias
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128]) || m_down3.0.nstb_block.attn.proj.weight
+ | -0.004 | -0.087 |  0.087 |  0.055 | torch.Size([128]) || m_down3.0.nstb_block.attn.proj.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_down3.0.nstb_block.norm1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_down3.0.nstb_block.norm1.bias
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([256, 128]) || m_down3.0.nstb_block.ffn.fc1.weight
+ | -0.000 | -0.088 |  0.088 |  0.050 | torch.Size([256]) || m_down3.0.nstb_block.ffn.fc1.bias
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([128, 256]) || m_down3.0.nstb_block.ffn.fc2.weight
+ |  0.002 | -0.062 |  0.062 |  0.038 | torch.Size([128]) || m_down3.0.nstb_block.ffn.fc2.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_down3.0.nstb_block.norm2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_down3.0.nstb_block.norm2.bias
+ |  0.000 | -0.051 |  0.051 |  0.029 | torch.Size([256, 384, 1, 1]) || m_down3.0.conv1_2.weight
+ | -0.002 | -0.051 |  0.051 |  0.030 | torch.Size([256]) || m_down3.0.conv1_2.bias
+ | -0.000 | -0.031 |  0.031 |  0.018 | torch.Size([512, 256, 2, 2]) || m_down3.1.weight
+ |  0.000 | -0.044 |  0.044 |  0.026 | torch.Size([512, 512, 1, 1]) || m_body.0.conv1_1.weight
+ |  0.000 | -0.044 |  0.044 |  0.026 | torch.Size([512]) || m_body.0.conv1_1.bias
+ | -0.000 | -0.021 |  0.021 |  0.012 | torch.Size([256, 256, 3, 3]) || m_body.0.conv_block.0.weight
+ | -0.000 | -0.021 |  0.021 |  0.012 | torch.Size([256, 256, 3, 3]) || m_body.0.conv_block.2.weight
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([256]) || m_body.0.trans_block.ln1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([256]) || m_body.0.trans_block.ln1.bias
+ | -0.000 | -0.081 |  0.068 |  0.020 | torch.Size([8, 15, 15]) || m_body.0.trans_block.msa.relative_position_params
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([768, 256]) || m_body.0.trans_block.msa.embedding_layer.weight
+ |  0.001 | -0.062 |  0.062 |  0.036 | torch.Size([768]) || m_body.0.trans_block.msa.embedding_layer.bias
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([256, 256]) || m_body.0.trans_block.msa.linear.weight
+ |  0.002 | -0.062 |  0.062 |  0.035 | torch.Size([256]) || m_body.0.trans_block.msa.linear.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([256]) || m_body.0.trans_block.ln2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([256]) || m_body.0.trans_block.ln2.bias
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([1024, 256]) || m_body.0.trans_block.mlp.0.weight
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([1024]) || m_body.0.trans_block.mlp.0.bias
+ |  0.000 | -0.031 |  0.031 |  0.018 | torch.Size([256, 1024]) || m_body.0.trans_block.mlp.2.weight
+ |  0.000 | -0.031 |  0.031 |  0.017 | torch.Size([256]) || m_body.0.trans_block.mlp.2.bias
+ | -75.000 | -100.000 |  0.000 | 43.307 | torch.Size([1, 64, 64]) || m_body.0.nstb_block.attn_mask
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([128, 2, 8, 8]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.weight
+ | -0.006 | -0.088 |  0.086 |  0.051 | torch.Size([128]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.unigram_embed.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([8, 1, 1]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.logit_scale
+ |  0.005 | -0.042 |  0.073 |  0.022 | torch.Size([9, 8]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_bias_table
+ |  4.000 |  0.000 |  8.000 |  2.309 | torch.Size([4, 4]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_index
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([384, 128]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.weight
+ | -0.002 | -0.088 |  0.088 |  0.052 | torch.Size([384]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.bias
+ | -0.001 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.weight
+ |  0.001 | -0.085 |  0.088 |  0.052 | torch.Size([128]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.bias
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([256, 256, 1, 1]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.merge.weight
+ |  0.005 | -0.062 |  0.062 |  0.036 | torch.Size([256]) || m_body.0.nstb_block.ngram_window_partition.ngram_context.merge.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([8, 1, 1]) || m_body.0.nstb_block.attn.logit_scale
+ |  0.001 | -0.062 |  0.062 |  0.020 | torch.Size([225, 8]) || m_body.0.nstb_block.attn.relative_position_bias_table
+ | 112.000 |  0.000 | 224.000 | 48.719 | torch.Size([64, 64]) || m_body.0.nstb_block.attn.relative_position_index
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([768, 256]) || m_body.0.nstb_block.attn.qkv.weight
+ |  0.001 | -0.062 |  0.062 |  0.035 | torch.Size([768]) || m_body.0.nstb_block.attn.qkv.bias
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([256, 256]) || m_body.0.nstb_block.attn.proj.weight
+ |  0.000 | -0.061 |  0.062 |  0.036 | torch.Size([256]) || m_body.0.nstb_block.attn.proj.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([256]) || m_body.0.nstb_block.norm1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([256]) || m_body.0.nstb_block.norm1.bias
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([512, 256]) || m_body.0.nstb_block.ffn.fc1.weight
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([512]) || m_body.0.nstb_block.ffn.fc1.bias
+ | -0.000 | -0.044 |  0.044 |  0.026 | torch.Size([256, 512]) || m_body.0.nstb_block.ffn.fc2.weight
+ |  0.003 | -0.044 |  0.044 |  0.026 | torch.Size([256]) || m_body.0.nstb_block.ffn.fc2.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([256]) || m_body.0.nstb_block.norm2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([256]) || m_body.0.nstb_block.norm2.bias
+ |  0.000 | -0.036 |  0.036 |  0.021 | torch.Size([512, 768, 1, 1]) || m_body.0.conv1_2.weight
+ |  0.001 | -0.036 |  0.036 |  0.021 | torch.Size([512]) || m_body.0.conv1_2.bias
+ |  0.000 | -0.031 |  0.031 |  0.018 | torch.Size([512, 256, 2, 2]) || m_up3.0.weight
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([256, 256, 1, 1]) || m_up3.1.conv1_1.weight
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([256]) || m_up3.1.conv1_1.bias
+ |  0.000 | -0.029 |  0.029 |  0.017 | torch.Size([128, 128, 3, 3]) || m_up3.1.conv_block.0.weight
+ | -0.000 | -0.029 |  0.029 |  0.017 | torch.Size([128, 128, 3, 3]) || m_up3.1.conv_block.2.weight
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_up3.1.trans_block.ln1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_up3.1.trans_block.ln1.bias
+ | -0.001 | -0.061 |  0.062 |  0.021 | torch.Size([4, 15, 15]) || m_up3.1.trans_block.msa.relative_position_params
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([384, 128]) || m_up3.1.trans_block.msa.embedding_layer.weight
+ | -0.003 | -0.088 |  0.088 |  0.051 | torch.Size([384]) || m_up3.1.trans_block.msa.embedding_layer.bias
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128]) || m_up3.1.trans_block.msa.linear.weight
+ | -0.003 | -0.088 |  0.086 |  0.050 | torch.Size([128]) || m_up3.1.trans_block.msa.linear.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_up3.1.trans_block.ln2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_up3.1.trans_block.ln2.bias
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([512, 128]) || m_up3.1.trans_block.mlp.0.weight
+ |  0.003 | -0.088 |  0.088 |  0.052 | torch.Size([512]) || m_up3.1.trans_block.mlp.0.bias
+ | -0.000 | -0.044 |  0.044 |  0.025 | torch.Size([128, 512]) || m_up3.1.trans_block.mlp.2.weight
+ | -0.002 | -0.044 |  0.044 |  0.026 | torch.Size([128]) || m_up3.1.trans_block.mlp.2.bias
+ | -43.750 | -100.000 |  0.000 | 49.609 | torch.Size([4, 64, 64]) || m_up3.1.nstb_block.attn_mask
+ |  0.000 | -0.088 |  0.088 |  0.052 | torch.Size([64, 2, 8, 8]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.unigram_embed.weight
+ | -0.006 | -0.084 |  0.087 |  0.055 | torch.Size([64]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.unigram_embed.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([4, 1, 1]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.logit_scale
+ |  0.003 | -0.033 |  0.050 |  0.022 | torch.Size([9, 4]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_bias_table
+ |  4.000 |  0.000 |  8.000 |  2.309 | torch.Size([4, 4]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_index
+ | -0.001 | -0.125 |  0.125 |  0.072 | torch.Size([192, 64]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.weight
+ | -0.003 | -0.124 |  0.125 |  0.068 | torch.Size([192]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.bias
+ |  0.000 | -0.125 |  0.125 |  0.072 | torch.Size([64, 64]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.weight
+ | -0.009 | -0.122 |  0.121 |  0.075 | torch.Size([64]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.bias
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128, 1, 1]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.merge.weight
+ | -0.006 | -0.088 |  0.087 |  0.051 | torch.Size([128]) || m_up3.1.nstb_block.ngram_window_partition.ngram_context.merge.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([4, 1, 1]) || m_up3.1.nstb_block.attn.logit_scale
+ |  0.001 | -0.057 |  0.061 |  0.020 | torch.Size([225, 4]) || m_up3.1.nstb_block.attn.relative_position_bias_table
+ | 112.000 |  0.000 | 224.000 | 48.719 | torch.Size([64, 64]) || m_up3.1.nstb_block.attn.relative_position_index
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([384, 128]) || m_up3.1.nstb_block.attn.qkv.weight
+ |  0.001 | -0.088 |  0.088 |  0.050 | torch.Size([384]) || m_up3.1.nstb_block.attn.qkv.bias
+ | -0.001 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128]) || m_up3.1.nstb_block.attn.proj.weight
+ | -0.006 | -0.088 |  0.088 |  0.051 | torch.Size([128]) || m_up3.1.nstb_block.attn.proj.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_up3.1.nstb_block.norm1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_up3.1.nstb_block.norm1.bias
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([256, 128]) || m_up3.1.nstb_block.ffn.fc1.weight
+ | -0.000 | -0.088 |  0.086 |  0.051 | torch.Size([256]) || m_up3.1.nstb_block.ffn.fc1.bias
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([128, 256]) || m_up3.1.nstb_block.ffn.fc2.weight
+ |  0.002 | -0.061 |  0.062 |  0.034 | torch.Size([128]) || m_up3.1.nstb_block.ffn.fc2.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([128]) || m_up3.1.nstb_block.norm2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([128]) || m_up3.1.nstb_block.norm2.bias
+ |  0.000 | -0.051 |  0.051 |  0.030 | torch.Size([256, 384, 1, 1]) || m_up3.1.conv1_2.weight
+ | -0.002 | -0.051 |  0.051 |  0.028 | torch.Size([256]) || m_up3.1.conv1_2.bias
+ | -0.000 | -0.044 |  0.044 |  0.026 | torch.Size([256, 128, 2, 2]) || m_up2.0.weight
+ |  0.001 | -0.088 |  0.088 |  0.051 | torch.Size([128, 128, 1, 1]) || m_up2.1.conv1_1.weight
+ | -0.000 | -0.088 |  0.086 |  0.050 | torch.Size([128]) || m_up2.1.conv1_1.bias
+ |  0.000 | -0.042 |  0.042 |  0.024 | torch.Size([64, 64, 3, 3]) || m_up2.1.conv_block.0.weight
+ |  0.000 | -0.042 |  0.042 |  0.024 | torch.Size([64, 64, 3, 3]) || m_up2.1.conv_block.2.weight
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_up2.1.trans_block.ln1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_up2.1.trans_block.ln1.bias
+ |  0.001 | -0.055 |  0.071 |  0.020 | torch.Size([2, 15, 15]) || m_up2.1.trans_block.msa.relative_position_params
+ | -0.001 | -0.125 |  0.125 |  0.072 | torch.Size([192, 64]) || m_up2.1.trans_block.msa.embedding_layer.weight
+ | -0.008 | -0.124 |  0.123 |  0.069 | torch.Size([192]) || m_up2.1.trans_block.msa.embedding_layer.bias
+ |  0.002 | -0.125 |  0.125 |  0.072 | torch.Size([64, 64]) || m_up2.1.trans_block.msa.linear.weight
+ | -0.003 | -0.119 |  0.116 |  0.074 | torch.Size([64]) || m_up2.1.trans_block.msa.linear.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_up2.1.trans_block.ln2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_up2.1.trans_block.ln2.bias
+ |  0.001 | -0.125 |  0.125 |  0.072 | torch.Size([256, 64]) || m_up2.1.trans_block.mlp.0.weight
+ | -0.008 | -0.125 |  0.125 |  0.073 | torch.Size([256]) || m_up2.1.trans_block.mlp.0.bias
+ |  0.000 | -0.062 |  0.062 |  0.036 | torch.Size([64, 256]) || m_up2.1.trans_block.mlp.2.weight
+ |  0.001 | -0.054 |  0.061 |  0.035 | torch.Size([64]) || m_up2.1.trans_block.mlp.2.bias
+ | -23.438 | -100.000 |  0.000 | 42.361 | torch.Size([16, 64, 64]) || m_up2.1.nstb_block.attn_mask
+ |  0.000 | -0.088 |  0.088 |  0.051 | torch.Size([32, 2, 8, 8]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.unigram_embed.weight
+ |  0.009 | -0.082 |  0.083 |  0.050 | torch.Size([32]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.unigram_embed.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([2, 1, 1]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.logit_scale
+ |  0.003 | -0.036 |  0.045 |  0.023 | torch.Size([9, 2]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_bias_table
+ |  4.000 |  0.000 |  8.000 |  2.309 | torch.Size([4, 4]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_index
+ |  0.000 | -0.177 |  0.177 |  0.102 | torch.Size([96, 32]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.weight
+ | -0.012 | -0.174 |  0.174 |  0.100 | torch.Size([96]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.bias
+ | -0.003 | -0.177 |  0.177 |  0.101 | torch.Size([32, 32]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.weight
+ |  0.025 | -0.165 |  0.173 |  0.105 | torch.Size([32]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.bias
+ | -0.002 | -0.125 |  0.125 |  0.072 | torch.Size([64, 64, 1, 1]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.merge.weight
+ | -0.009 | -0.124 |  0.108 |  0.073 | torch.Size([64]) || m_up2.1.nstb_block.ngram_window_partition.ngram_context.merge.bias
+ |  2.303 |  2.303 |  2.303 |  0.000 | torch.Size([2, 1, 1]) || m_up2.1.nstb_block.attn.logit_scale
+ | -0.001 | -0.055 |  0.052 |  0.018 | torch.Size([225, 2]) || m_up2.1.nstb_block.attn.relative_position_bias_table
+ | 112.000 |  0.000 | 224.000 | 48.719 | torch.Size([64, 64]) || m_up2.1.nstb_block.attn.relative_position_index
+ |  0.001 | -0.125 |  0.125 |  0.073 | torch.Size([192, 64]) || m_up2.1.nstb_block.attn.qkv.weight
+ | -0.006 | -0.120 |  0.124 |  0.070 | torch.Size([192]) || m_up2.1.nstb_block.attn.qkv.bias
+ | -0.000 | -0.125 |  0.125 |  0.071 | torch.Size([64, 64]) || m_up2.1.nstb_block.attn.proj.weight
+ | -0.006 | -0.120 |  0.124 |  0.071 | torch.Size([64]) || m_up2.1.nstb_block.attn.proj.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_up2.1.nstb_block.norm1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_up2.1.nstb_block.norm1.bias
+ |  0.000 | -0.125 |  0.125 |  0.072 | torch.Size([128, 64]) || m_up2.1.nstb_block.ffn.fc1.weight
+ |  0.014 | -0.121 |  0.123 |  0.074 | torch.Size([128]) || m_up2.1.nstb_block.ffn.fc1.bias
+ |  0.001 | -0.088 |  0.088 |  0.051 | torch.Size([64, 128]) || m_up2.1.nstb_block.ffn.fc2.weight
+ |  0.005 | -0.087 |  0.088 |  0.052 | torch.Size([64]) || m_up2.1.nstb_block.ffn.fc2.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([64]) || m_up2.1.nstb_block.norm2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([64]) || m_up2.1.nstb_block.norm2.bias
+ | -0.000 | -0.072 |  0.072 |  0.042 | torch.Size([128, 192, 1, 1]) || m_up2.1.conv1_2.weight
+ |  0.004 | -0.072 |  0.072 |  0.042 | torch.Size([128]) || m_up2.1.conv1_2.bias
+ | -0.000 | -0.062 |  0.062 |  0.036 | torch.Size([128, 64, 2, 2]) || m_up1.0.weight
+ |  0.001 | -0.125 |  0.125 |  0.072 | torch.Size([64, 64, 1, 1]) || m_up1.1.conv1_1.weight
+ |  0.006 | -0.123 |  0.124 |  0.070 | torch.Size([64]) || m_up1.1.conv1_1.bias
+ |  0.000 | -0.059 |  0.059 |  0.034 | torch.Size([32, 32, 3, 3]) || m_up1.1.conv_block.0.weight
+ | -0.001 | -0.059 |  0.059 |  0.034 | torch.Size([32, 32, 3, 3]) || m_up1.1.conv_block.2.weight
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_up1.1.trans_block.ln1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_up1.1.trans_block.ln1.bias
+ |  0.001 | -0.054 |  0.058 |  0.019 | torch.Size([1, 15, 15]) || m_up1.1.trans_block.msa.relative_position_params
+ |  0.001 | -0.177 |  0.177 |  0.102 | torch.Size([96, 32]) || m_up1.1.trans_block.msa.embedding_layer.weight
+ |  0.003 | -0.172 |  0.176 |  0.105 | torch.Size([96]) || m_up1.1.trans_block.msa.embedding_layer.bias
+ |  0.001 | -0.176 |  0.177 |  0.104 | torch.Size([32, 32]) || m_up1.1.trans_block.msa.linear.weight
+ |  0.006 | -0.158 |  0.171 |  0.096 | torch.Size([32]) || m_up1.1.trans_block.msa.linear.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_up1.1.trans_block.ln2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_up1.1.trans_block.ln2.bias
+ |  0.002 | -0.177 |  0.177 |  0.103 | torch.Size([128, 32]) || m_up1.1.trans_block.mlp.0.weight
+ | -0.003 | -0.174 |  0.169 |  0.102 | torch.Size([128]) || m_up1.1.trans_block.mlp.0.bias
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([32, 128]) || m_up1.1.trans_block.mlp.2.weight
+ | -0.005 | -0.080 |  0.083 |  0.045 | torch.Size([32]) || m_up1.1.trans_block.mlp.2.bias
+ | -12.109 | -100.000 |  0.000 | 32.624 | torch.Size([64, 64, 64]) || m_up1.1.nstb_block.attn_mask
+ | -0.000 | -0.088 |  0.088 |  0.051 | torch.Size([16, 2, 8, 8]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.unigram_embed.weight
+ |  0.021 | -0.055 |  0.082 |  0.047 | torch.Size([16]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.unigram_embed.bias
+ |  2.303 |  2.303 |  2.303 |    nan | torch.Size([1, 1, 1]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.logit_scale
+ |  0.008 | -0.018 |  0.030 |  0.015 | torch.Size([9, 1]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_bias_table
+ |  4.000 |  0.000 |  8.000 |  2.309 | torch.Size([4, 4]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.relative_position_index
+ |  0.000 | -0.249 |  0.250 |  0.142 | torch.Size([48, 16]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.weight
+ |  0.030 | -0.248 |  0.246 |  0.156 | torch.Size([48]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.qkv.bias
+ | -0.000 | -0.250 |  0.247 |  0.150 | torch.Size([16, 16]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.weight
+ | -0.054 | -0.242 |  0.217 |  0.166 | torch.Size([16]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.ngram_attn.proj.bias
+ | -0.001 | -0.176 |  0.176 |  0.101 | torch.Size([32, 32, 1, 1]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.merge.weight
+ | -0.005 | -0.159 |  0.173 |  0.103 | torch.Size([32]) || m_up1.1.nstb_block.ngram_window_partition.ngram_context.merge.bias
+ |  2.303 |  2.303 |  2.303 |    nan | torch.Size([1, 1, 1]) || m_up1.1.nstb_block.attn.logit_scale
+ |  0.001 | -0.048 |  0.050 |  0.019 | torch.Size([225, 1]) || m_up1.1.nstb_block.attn.relative_position_bias_table
+ | 112.000 |  0.000 | 224.000 | 48.719 | torch.Size([64, 64]) || m_up1.1.nstb_block.attn.relative_position_index
+ |  0.001 | -0.177 |  0.176 |  0.103 | torch.Size([96, 32]) || m_up1.1.nstb_block.attn.qkv.weight
+ | -0.024 | -0.175 |  0.170 |  0.099 | torch.Size([96]) || m_up1.1.nstb_block.attn.qkv.bias
+ | -0.000 | -0.177 |  0.177 |  0.106 | torch.Size([32, 32]) || m_up1.1.nstb_block.attn.proj.weight
+ |  0.023 | -0.175 |  0.177 |  0.104 | torch.Size([32]) || m_up1.1.nstb_block.attn.proj.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_up1.1.nstb_block.norm1.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_up1.1.nstb_block.norm1.bias
+ |  0.001 | -0.177 |  0.177 |  0.102 | torch.Size([64, 32]) || m_up1.1.nstb_block.ffn.fc1.weight
+ | -0.002 | -0.176 |  0.176 |  0.096 | torch.Size([64]) || m_up1.1.nstb_block.ffn.fc1.bias
+ | -0.003 | -0.125 |  0.125 |  0.073 | torch.Size([32, 64]) || m_up1.1.nstb_block.ffn.fc2.weight
+ | -0.012 | -0.122 |  0.106 |  0.070 | torch.Size([32]) || m_up1.1.nstb_block.ffn.fc2.bias
+ |  1.000 |  1.000 |  1.000 |  0.000 | torch.Size([32]) || m_up1.1.nstb_block.norm2.weight
+ |  0.000 |  0.000 |  0.000 |  0.000 | torch.Size([32]) || m_up1.1.nstb_block.norm2.bias
+ | -0.000 | -0.102 |  0.102 |  0.059 | torch.Size([64, 96, 1, 1]) || m_up1.1.conv1_2.weight
+ | -0.009 | -0.102 |  0.101 |  0.062 | torch.Size([64]) || m_up1.1.conv1_2.bias
+ | -0.000 | -0.042 |  0.042 |  0.024 | torch.Size([1, 64, 3, 3]) || m_tail.0.weight
+
+25-09-20 17:49:32.886 : TensorBoard logging to: training_results/synthetic_transfer_finetune/scunet_ngswin_conv_trans_nstb_synthetic_transfer_finetune/tensorboard/SCUNet_conv_trans_nstb_synthetic_transfer_val0.1
+25-09-20 17:49:32.886 : Experiment name: SCUNet_conv_trans_nstb_synthetic_transfer_val0.1
+25-09-20 17:49:32.886 : Validation split: 10.0% of training data
+25-09-20 17:49:32.886 : Early stopping is disabled. Training will run for full 100 epochs.
+25-09-20 17:49:32.886 : Starting training...
+25-09-20 17:49:32.886 : Training dataset size: 19,071
+25-09-20 17:49:32.886 : Iterations per epoch: 4,768
+25-09-20 17:49:32.886 : Current step: 0
+25-09-20 17:49:32.886 : Starting from epoch: 1
+25-09-20 17:58:56.670 : <epoch:  1, iter:   1,000, lr:5.000e-05> G_loss: 9.117e-03 
+25-09-20 18:08:32.195 : <epoch:  1, iter:   2,000, lr:5.000e-05> G_loss: 9.906e-03 
+25-09-20 18:18:09.738 : <epoch:  1, iter:   3,000, lr:5.000e-05> G_loss: 8.460e-03 
+25-09-20 18:27:47.944 : <epoch:  1, iter:   4,000, lr:5.000e-05> G_loss: 8.919e-03 
+25-09-20 18:37:23.506 : <epoch:  2, iter:   5,000, lr:5.000e-05> G_loss: 7.337e-03 
+25-09-20 18:37:23.507 : Saving the model.
+25-09-20 18:46:58.653 : <epoch:  2, iter:   6,000, lr:5.000e-05> G_loss: 7.651e-03 
+25-09-20 18:56:35.235 : <epoch:  2, iter:   7,000, lr:5.000e-05> G_loss: 7.802e-03 
+25-09-20 19:06:17.267 : <epoch:  2, iter:   8,000, lr:5.000e-05> G_loss: 6.921e-03 
+25-09-20 19:15:56.448 : <epoch:  2, iter:   9,000, lr:5.000e-05> G_loss: 7.753e-03 
+25-09-20 19:25:35.970 : <epoch:  3, iter:  10,000, lr:5.000e-05> G_loss: 6.231e-03 
+25-09-20 19:25:35.971 : Saving the model.
+25-09-20 19:29:00.263 : <epoch:  3, iter:  10,000, Val PSNR: 38.40dB, Val SSIM: 0.9752
+25-09-20 19:29:00.264 : Training samples this epoch: 1864
+25-09-20 19:29:00.264 : Validation samples this check: 2119
+25-09-20 19:29:00.265 : Saving PSNR checkpoint.
+25-09-20 19:38:40.670 : <epoch:  3, iter:  11,000, lr:5.000e-05> G_loss: 8.936e-03 
+25-09-20 19:48:21.433 : <epoch:  3, iter:  12,000, lr:5.000e-05> G_loss: 5.148e-03 
+25-09-20 19:58:02.139 : <epoch:  3, iter:  13,000, lr:5.000e-05> G_loss: 5.629e-03 
+25-09-20 20:07:43.519 : <epoch:  3, iter:  14,000, lr:5.000e-05> G_loss: 5.131e-03 
+25-09-20 20:17:25.362 : <epoch:  4, iter:  15,000, lr:5.000e-05> G_loss: 6.390e-03 
+25-09-20 20:17:25.363 : Saving the model.
+25-09-20 20:27:06.472 : <epoch:  4, iter:  16,000, lr:5.000e-05> G_loss: 5.714e-03 
+25-09-20 20:36:48.645 : <epoch:  4, iter:  17,000, lr:5.000e-05> G_loss: 5.613e-03 
+25-09-20 20:46:30.992 : <epoch:  4, iter:  18,000, lr:5.000e-05> G_loss: 5.684e-03 
+25-09-20 20:56:13.363 : <epoch:  4, iter:  19,000, lr:5.000e-05> G_loss: 4.206e-03 
+25-09-20 21:05:55.794 : <epoch:  5, iter:  20,000, lr:5.000e-05> G_loss: 4.716e-03 
+25-09-20 21:05:55.794 : Saving the model.
+25-09-20 21:09:23.170 : <epoch:  5, iter:  20,000, Val PSNR: 39.92dB, Val SSIM: 0.9820
+25-09-20 21:09:23.170 : Training samples this epoch: 3728
+25-09-20 21:09:23.170 : Validation samples this check: 2119
+25-09-20 21:09:23.172 : Saving PSNR checkpoint.
+25-09-20 21:19:03.746 : <epoch:  5, iter:  21,000, lr:5.000e-05> G_loss: 4.190e-03 
+25-09-20 21:28:42.219 : <epoch:  5, iter:  22,000, lr:5.000e-05> G_loss: 4.772e-03 
+25-09-20 21:38:20.417 : <epoch:  5, iter:  23,000, lr:5.000e-05> G_loss: 5.412e-03 
+25-09-20 21:47:58.710 : <epoch:  6, iter:  24,000, lr:5.000e-05> G_loss: 4.225e-03 
+25-09-20 21:57:37.283 : <epoch:  6, iter:  25,000, lr:5.000e-05> G_loss: 4.727e-03 
+25-09-20 21:57:37.284 : Saving the model.
+25-09-20 22:07:14.854 : <epoch:  6, iter:  26,000, lr:5.000e-05> G_loss: 3.960e-03 
+25-09-20 22:16:52.985 : <epoch:  6, iter:  27,000, lr:5.000e-05> G_loss: 3.995e-03 
+25-09-20 22:26:30.729 : <epoch:  6, iter:  28,000, lr:5.000e-05> G_loss: 5.126e-03 
+25-09-20 22:36:09.346 : <epoch:  7, iter:  29,000, lr:5.000e-05> G_loss: 4.484e-03 
+25-09-20 22:45:47.567 : <epoch:  7, iter:  30,000, lr:5.000e-05> G_loss: 3.417e-03 
+25-09-20 22:45:47.567 : Saving the model.
+25-09-20 22:49:03.461 : <epoch:  7, iter:  30,000, Val PSNR: 41.66dB, Val SSIM: 0.9858
+25-09-20 22:49:03.461 : Training samples this epoch: 5592
+25-09-20 22:49:03.461 : Validation samples this check: 2119
+25-09-20 22:49:03.462 : Saving PSNR checkpoint.
+25-09-20 22:58:40.586 : <epoch:  7, iter:  31,000, lr:5.000e-05> G_loss: 4.263e-03 
+25-09-20 23:08:19.986 : <epoch:  7, iter:  32,000, lr:5.000e-05> G_loss: 3.185e-03 
+25-09-20 23:17:59.156 : <epoch:  7, iter:  33,000, lr:5.000e-05> G_loss: 4.017e-03 
+25-09-20 23:27:38.288 : <epoch:  8, iter:  34,000, lr:5.000e-05> G_loss: 4.094e-03 
+25-09-20 23:37:17.453 : <epoch:  8, iter:  35,000, lr:5.000e-05> G_loss: 3.395e-03 
+25-09-20 23:37:17.453 : Saving the model.
+25-09-20 23:46:56.230 : <epoch:  8, iter:  36,000, lr:5.000e-05> G_loss: 3.890e-03 
+25-09-20 23:56:35.102 : <epoch:  8, iter:  37,000, lr:5.000e-05> G_loss: 3.143e-03 
+25-09-21 00:06:13.927 : <epoch:  8, iter:  38,000, lr:5.000e-05> G_loss: 3.929e-03 
+25-09-21 00:15:52.904 : <epoch:  9, iter:  39,000, lr:5.000e-05> G_loss: 4.294e-03 
+25-09-21 00:25:32.345 : <epoch:  9, iter:  40,000, lr:5.000e-05> G_loss: 3.344e-03 
+25-09-21 00:25:32.346 : Saving the model.
+25-09-21 00:28:50.976 : <epoch:  9, iter:  40,000, Val PSNR: 42.76dB, Val SSIM: 0.9874
+25-09-21 00:28:50.977 : Training samples this epoch: 7456
+25-09-21 00:28:50.977 : Validation samples this check: 2119
+25-09-21 00:28:50.978 : Saving PSNR checkpoint.
+25-09-21 00:38:31.886 : <epoch:  9, iter:  41,000, lr:5.000e-05> G_loss: 3.778e-03 
+25-09-21 00:48:11.497 : <epoch:  9, iter:  42,000, lr:5.000e-05> G_loss: 3.258e-03 
+25-09-21 00:57:49.821 : <epoch: 10, iter:  43,000, lr:5.000e-05> G_loss: 4.174e-03 
+25-09-21 01:07:28.753 : <epoch: 10, iter:  44,000, lr:5.000e-05> G_loss: 4.007e-03 
+25-09-21 01:17:08.577 : <epoch: 10, iter:  45,000, lr:5.000e-05> G_loss: 3.196e-03 
+25-09-21 01:17:08.578 : Saving the model.
+25-09-21 01:26:47.729 : <epoch: 10, iter:  46,000, lr:5.000e-05> G_loss: 3.853e-03 
+25-09-21 01:36:27.106 : <epoch: 10, iter:  47,000, lr:5.000e-05> G_loss: 3.122e-03 
+25-09-21 01:46:07.176 : <epoch: 11, iter:  48,000, lr:5.000e-05> G_loss: 3.090e-03 
+25-09-21 01:55:48.263 : <epoch: 11, iter:  49,000, lr:5.000e-05> G_loss: 3.324e-03 
+25-09-21 02:05:29.459 : <epoch: 11, iter:  50,000, lr:1.250e-05> G_loss: 4.495e-03 
+25-09-21 02:05:29.459 : Saving the model.
+25-09-21 02:08:53.186 : <epoch: 11, iter:  50,000, Val PSNR: 42.66dB, Val SSIM: 0.9881
+25-09-21 02:08:53.186 : Training samples this epoch: 9320
+25-09-21 02:08:53.186 : Validation samples this check: 2119
+25-09-21 02:08:53.187 : Saving PSNR checkpoint.
+25-09-21 02:18:30.396 : <epoch: 11, iter:  51,000, lr:2.500e-05> G_loss: 4.214e-03 
+25-09-21 02:28:09.424 : <epoch: 11, iter:  52,000, lr:2.500e-05> G_loss: 3.119e-03 
+25-09-21 02:37:49.606 : <epoch: 12, iter:  53,000, lr:2.500e-05> G_loss: 2.757e-03 
+25-09-21 02:47:29.908 : <epoch: 12, iter:  54,000, lr:2.500e-05> G_loss: 3.572e-03 
+25-09-21 02:57:09.753 : <epoch: 12, iter:  55,000, lr:2.500e-05> G_loss: 2.540e-03 
+25-09-21 02:57:09.753 : Saving the model.
+25-09-21 03:06:48.758 : <epoch: 12, iter:  56,000, lr:2.500e-05> G_loss: 3.300e-03 
+25-09-21 03:16:28.081 : <epoch: 12, iter:  57,000, lr:2.500e-05> G_loss: 4.045e-03 
+25-09-21 03:26:08.330 : <epoch: 13, iter:  58,000, lr:2.500e-05> G_loss: 3.449e-03 
+25-09-21 03:35:48.395 : <epoch: 13, iter:  59,000, lr:2.500e-05> G_loss: 3.664e-03 
+25-09-21 03:45:27.749 : <epoch: 13, iter:  60,000, lr:2.500e-05> G_loss: 2.973e-03 
+25-09-21 03:45:27.749 : Saving the model.
+25-09-21 03:48:43.219 : <epoch: 13, iter:  60,000, Val PSNR: 43.59dB, Val SSIM: 0.9889
+25-09-21 03:48:43.219 : Training samples this epoch: 11184
+25-09-21 03:48:43.219 : Validation samples this check: 2119
+25-09-21 03:48:43.220 : Saving PSNR checkpoint.
+25-09-21 03:58:21.763 : <epoch: 13, iter:  61,000, lr:2.500e-05> G_loss: 3.575e-03 
+25-09-21 04:08:03.135 : <epoch: 14, iter:  62,000, lr:2.500e-05> G_loss: 3.003e-03 
+25-09-21 04:17:44.393 : <epoch: 14, iter:  63,000, lr:2.500e-05> G_loss: 2.740e-03 
+25-09-21 04:27:25.450 : <epoch: 14, iter:  64,000, lr:2.500e-05> G_loss: 3.092e-03 
+25-09-21 04:37:06.495 : <epoch: 14, iter:  65,000, lr:2.500e-05> G_loss: 2.708e-03 
+25-09-21 04:37:06.496 : Saving the model.
+25-09-21 04:46:45.709 : <epoch: 14, iter:  66,000, lr:2.500e-05> G_loss: 3.204e-03 
+25-09-21 04:56:24.168 : <epoch: 15, iter:  67,000, lr:2.500e-05> G_loss: 3.082e-03 
+25-09-21 05:06:01.596 : <epoch: 15, iter:  68,000, lr:2.500e-05> G_loss: 3.340e-03 
+25-09-21 05:15:39.023 : <epoch: 15, iter:  69,000, lr:2.500e-05> G_loss: 2.890e-03 
+25-09-21 05:25:16.236 : <epoch: 15, iter:  70,000, lr:2.500e-05> G_loss: 3.278e-03 
+25-09-21 05:25:16.236 : Saving the model.
+25-09-21 05:28:38.835 : <epoch: 15, iter:  70,000, Val PSNR: 43.97dB, Val SSIM: 0.9894
+25-09-21 05:28:38.835 : Training samples this epoch: 13048
+25-09-21 05:28:38.835 : Validation samples this check: 2119
+25-09-21 05:28:38.836 : Saving PSNR checkpoint.
+25-09-21 05:38:14.409 : <epoch: 15, iter:  71,000, lr:2.500e-05> G_loss: 3.173e-03 
+25-09-21 05:47:52.332 : <epoch: 16, iter:  72,000, lr:2.500e-05> G_loss: 3.331e-03 
+25-09-21 05:57:29.422 : <epoch: 16, iter:  73,000, lr:2.500e-05> G_loss: 3.577e-03 
+25-09-21 06:07:07.103 : <epoch: 16, iter:  74,000, lr:2.500e-05> G_loss: 3.259e-03 
+25-09-21 06:16:45.042 : <epoch: 16, iter:  75,000, lr:2.500e-05> G_loss: 2.981e-03 
+25-09-21 06:16:45.043 : Saving the model.
+25-09-21 06:26:22.520 : <epoch: 16, iter:  76,000, lr:2.500e-05> G_loss: 3.098e-03 
+25-09-21 06:35:59.607 : <epoch: 17, iter:  77,000, lr:2.500e-05> G_loss: 3.347e-03 
+25-09-21 06:45:36.846 : <epoch: 17, iter:  78,000, lr:2.500e-05> G_loss: 2.714e-03 
+25-09-21 06:55:15.060 : <epoch: 17, iter:  79,000, lr:2.500e-05> G_loss: 3.040e-03 
+25-09-21 07:04:52.957 : <epoch: 17, iter:  80,000, lr:2.500e-05> G_loss: 2.927e-03 
+25-09-21 07:04:52.958 : Saving the model.
+25-09-21 07:08:14.900 : <epoch: 17, iter:  80,000, Val PSNR: 44.18dB, Val SSIM: 0.9896
+25-09-21 07:08:14.900 : Training samples this epoch: 14912
+25-09-21 07:08:14.901 : Validation samples this check: 2119
+25-09-21 07:08:14.901 : Saving PSNR checkpoint.
+25-09-21 07:17:49.874 : <epoch: 17, iter:  81,000, lr:2.500e-05> G_loss: 3.284e-03 
+25-09-21 07:27:28.444 : <epoch: 18, iter:  82,000, lr:2.500e-05> G_loss: 3.527e-03 
+25-09-21 07:37:06.467 : <epoch: 18, iter:  83,000, lr:2.500e-05> G_loss: 2.821e-03 
+25-09-21 07:46:43.410 : <epoch: 18, iter:  84,000, lr:2.500e-05> G_loss: 2.653e-03 
+25-09-21 07:56:20.855 : <epoch: 18, iter:  85,000, lr:2.500e-05> G_loss: 3.286e-03 
+25-09-21 07:56:20.855 : Saving the model.
+25-09-21 08:05:58.136 : <epoch: 19, iter:  86,000, lr:2.500e-05> G_loss: 2.455e-03 
+25-09-21 08:15:35.232 : <epoch: 19, iter:  87,000, lr:2.500e-05> G_loss: 2.835e-03 
+25-09-21 08:25:12.148 : <epoch: 19, iter:  88,000, lr:2.500e-05> G_loss: 2.292e-03 
+25-09-21 08:34:49.516 : <epoch: 19, iter:  89,000, lr:2.500e-05> G_loss: 2.368e-03 
+25-09-21 08:44:27.303 : <epoch: 19, iter:  90,000, lr:2.500e-05> G_loss: 2.836e-03 
+25-09-21 08:44:27.304 : Saving the model.
+25-09-21 08:47:43.910 : <epoch: 19, iter:  90,000, Val PSNR: 44.26dB, Val SSIM: 0.9898
+25-09-21 08:47:43.910 : Training samples this epoch: 16776
+25-09-21 08:47:43.910 : Validation samples this check: 2119
+25-09-21 08:47:43.911 : Saving PSNR checkpoint.
+25-09-21 08:57:20.969 : <epoch: 20, iter:  91,000, lr:2.500e-05> G_loss: 2.542e-03 
+25-09-21 09:06:58.952 : <epoch: 20, iter:  92,000, lr:2.500e-05> G_loss: 2.658e-03 
+25-09-21 09:16:36.713 : <epoch: 20, iter:  93,000, lr:2.500e-05> G_loss: 3.052e-03 
+25-09-21 09:26:14.315 : <epoch: 20, iter:  94,000, lr:2.500e-05> G_loss: 2.635e-03 
+25-09-21 09:35:50.824 : <epoch: 20, iter:  95,000, lr:2.500e-05> G_loss: 2.935e-03 
+25-09-21 09:35:50.824 : Saving the model.
+25-09-21 09:45:28.489 : <epoch: 21, iter:  96,000, lr:2.500e-05> G_loss: 2.790e-03 
+25-09-21 09:55:06.227 : <epoch: 21, iter:  97,000, lr:2.500e-05> G_loss: 2.632e-03 
+25-09-21 10:04:44.057 : <epoch: 21, iter:  98,000, lr:2.500e-05> G_loss: 2.594e-03 
+25-09-21 10:14:20.193 : <epoch: 21, iter:  99,000, lr:2.500e-05> G_loss: 2.661e-03 
+25-09-21 10:23:56.256 : <epoch: 21, iter: 100,000, lr:6.250e-06> G_loss: 3.093e-03 
+25-09-21 10:23:56.257 : Saving the model.
+25-09-21 10:27:12.522 : <epoch: 21, iter: 100,000, Val PSNR: 44.39dB, Val SSIM: 0.9900
+25-09-21 10:27:12.522 : Training samples this epoch: 18640
+25-09-21 10:27:12.523 : Validation samples this check: 2119
+25-09-21 10:27:12.523 : Saving PSNR checkpoint.
+25-09-21 10:36:46.721 : <epoch: 22, iter: 101,000, lr:1.250e-05> G_loss: 2.190e-03 
+25-09-21 10:46:23.216 : <epoch: 22, iter: 102,000, lr:1.250e-05> G_loss: 2.913e-03 
+25-09-21 10:55:59.785 : <epoch: 22, iter: 103,000, lr:1.250e-05> G_loss: 2.792e-03 
+25-09-21 11:05:35.208 : <epoch: 22, iter: 104,000, lr:1.250e-05> G_loss: 2.989e-03 
+25-09-21 11:15:10.921 : <epoch: 23, iter: 105,000, lr:1.250e-05> G_loss: 2.713e-03 
+25-09-21 11:15:10.922 : Saving the model.
+25-09-21 11:24:47.010 : <epoch: 23, iter: 106,000, lr:1.250e-05> G_loss: 3.090e-03 
+25-09-21 11:34:23.228 : <epoch: 23, iter: 107,000, lr:1.250e-05> G_loss: 2.642e-03 
+25-09-21 11:43:58.992 : <epoch: 23, iter: 108,000, lr:1.250e-05> G_loss: 2.288e-03 
+25-09-21 11:53:34.768 : <epoch: 23, iter: 109,000, lr:1.250e-05> G_loss: 2.832e-03 
+25-09-21 12:03:10.735 : <epoch: 24, iter: 110,000, lr:1.250e-05> G_loss: 2.511e-03 
+25-09-21 12:03:10.736 : Saving the model.
+25-09-21 12:06:34.009 : <epoch: 24, iter: 110,000, Val PSNR: 44.50dB, Val SSIM: 0.9902
+25-09-21 12:06:34.010 : Training samples this epoch: 1436
+25-09-21 12:06:34.010 : Validation samples this check: 2119
+25-09-21 12:06:34.011 : Saving PSNR checkpoint.
+25-09-21 12:16:07.875 : <epoch: 24, iter: 111,000, lr:1.250e-05> G_loss: 2.765e-03 
+25-09-21 12:25:42.155 : <epoch: 24, iter: 112,000, lr:1.250e-05> G_loss: 2.332e-03 
+25-09-21 12:35:17.367 : <epoch: 24, iter: 113,000, lr:1.250e-05> G_loss: 2.567e-03 
+25-09-21 12:44:53.198 : <epoch: 24, iter: 114,000, lr:1.250e-05> G_loss: 2.354e-03 
+25-09-21 12:54:29.093 : <epoch: 25, iter: 115,000, lr:1.250e-05> G_loss: 2.844e-03 
+25-09-21 12:54:29.093 : Saving the model.
+25-09-21 13:04:03.290 : <epoch: 25, iter: 116,000, lr:1.250e-05> G_loss: 2.625e-03 
+25-09-21 13:13:38.635 : <epoch: 25, iter: 117,000, lr:1.250e-05> G_loss: 2.874e-03 
+25-09-21 13:23:12.873 : <epoch: 25, iter: 118,000, lr:1.250e-05> G_loss: 2.953e-03 
+25-09-21 13:32:48.400 : <epoch: 25, iter: 119,000, lr:1.250e-05> G_loss: 2.943e-03 
+25-09-21 13:42:23.554 : <epoch: 26, iter: 120,000, lr:1.250e-05> G_loss: 2.947e-03 
+25-09-21 13:42:23.554 : Saving the model.
+25-09-21 13:45:47.175 : <epoch: 26, iter: 120,000, Val PSNR: 44.58dB, Val SSIM: 0.9903
+25-09-21 13:45:47.175 : Training samples this epoch: 3300
+25-09-21 13:45:47.176 : Validation samples this check: 2119
+25-09-21 13:45:47.176 : Saving PSNR checkpoint.
+25-09-21 13:55:18.674 : <epoch: 26, iter: 121,000, lr:1.250e-05> G_loss: 2.698e-03 
+25-09-21 14:04:54.395 : <epoch: 26, iter: 122,000, lr:1.250e-05> G_loss: 2.509e-03 
+25-09-21 14:14:30.151 : <epoch: 26, iter: 123,000, lr:1.250e-05> G_loss: 2.457e-03 
+25-09-21 14:24:05.444 : <epoch: 27, iter: 124,000, lr:1.250e-05> G_loss: 2.350e-03 
+25-09-21 14:33:39.783 : <epoch: 27, iter: 125,000, lr:1.250e-05> G_loss: 2.362e-03 
+25-09-21 14:33:39.783 : Saving the model.
+25-09-21 14:43:14.784 : <epoch: 27, iter: 126,000, lr:1.250e-05> G_loss: 2.924e-03 
+25-09-21 14:52:48.354 : <epoch: 27, iter: 127,000, lr:1.250e-05> G_loss: 2.589e-03 
+25-09-21 15:02:23.098 : <epoch: 27, iter: 128,000, lr:1.250e-05> G_loss: 2.797e-03 
+25-09-21 15:11:57.304 : <epoch: 28, iter: 129,000, lr:1.250e-05> G_loss: 2.650e-03 
+25-09-21 15:21:32.888 : <epoch: 28, iter: 130,000, lr:1.250e-05> G_loss: 2.484e-03 
+25-09-21 15:21:32.889 : Saving the model.
+25-09-21 15:24:48.423 : <epoch: 28, iter: 130,000, Val PSNR: 44.57dB, Val SSIM: 0.9904
+25-09-21 15:24:48.423 : Training samples this epoch: 5164
+25-09-21 15:24:48.423 : Validation samples this check: 2119
+25-09-21 15:24:48.424 : Saving PSNR checkpoint.
+25-09-21 15:34:21.368 : <epoch: 28, iter: 131,000, lr:1.250e-05> G_loss: 2.590e-03 
+25-09-21 15:43:56.190 : <epoch: 28, iter: 132,000, lr:1.250e-05> G_loss: 3.009e-03 
+25-09-21 15:53:31.567 : <epoch: 28, iter: 133,000, lr:1.250e-05> G_loss: 2.508e-03 
+25-09-21 16:03:06.198 : <epoch: 29, iter: 134,000, lr:1.250e-05> G_loss: 3.198e-03 
+25-09-21 16:12:40.842 : <epoch: 29, iter: 135,000, lr:1.250e-05> G_loss: 2.689e-03 
+25-09-21 16:12:40.842 : Saving the model.
+25-09-21 16:22:15.134 : <epoch: 29, iter: 136,000, lr:1.250e-05> G_loss: 2.909e-03 
+25-09-21 16:31:49.284 : <epoch: 29, iter: 137,000, lr:1.250e-05> G_loss: 2.522e-03 
+25-09-21 16:41:24.211 : <epoch: 29, iter: 138,000, lr:1.250e-05> G_loss: 2.913e-03 
+25-09-21 16:50:58.636 : <epoch: 30, iter: 139,000, lr:1.250e-05> G_loss: 2.799e-03 
+25-09-21 17:00:31.960 : <epoch: 30, iter: 140,000, lr:1.250e-05> G_loss: 2.812e-03 
+25-09-21 17:00:31.961 : Saving the model.
+25-09-21 17:03:47.139 : <epoch: 30, iter: 140,000, Val PSNR: 44.67dB, Val SSIM: 0.9904
+25-09-21 17:03:47.139 : Training samples this epoch: 7028
+25-09-21 17:03:47.139 : Validation samples this check: 2119
+25-09-21 17:03:47.140 : Saving PSNR checkpoint.
+25-09-21 17:13:21.369 : <epoch: 30, iter: 141,000, lr:1.250e-05> G_loss: 2.475e-03 
+25-09-21 17:22:57.394 : <epoch: 30, iter: 142,000, lr:1.250e-05> G_loss: 2.942e-03 
+25-09-21 17:32:31.687 : <epoch: 30, iter: 143,000, lr:1.250e-05> G_loss: 2.469e-03 
+25-09-21 17:42:07.114 : <epoch: 31, iter: 144,000, lr:1.250e-05> G_loss: 2.998e-03 
+25-09-21 17:51:43.000 : <epoch: 31, iter: 145,000, lr:1.250e-05> G_loss: 2.655e-03 
+25-09-21 17:51:43.000 : Saving the model.
+25-09-21 18:01:18.464 : <epoch: 31, iter: 146,000, lr:1.250e-05> G_loss: 2.632e-03 
+25-09-21 18:10:53.581 : <epoch: 31, iter: 147,000, lr:1.250e-05> G_loss: 2.438e-03 
+25-09-21 18:20:28.756 : <epoch: 32, iter: 148,000, lr:1.250e-05> G_loss: 2.601e-03 
+25-09-21 18:30:04.091 : <epoch: 32, iter: 149,000, lr:1.250e-05> G_loss: 2.841e-03 
+25-09-21 18:39:39.086 : <epoch: 32, iter: 150,000, lr:3.125e-06> G_loss: 2.861e-03 
+25-09-21 18:39:39.087 : Saving the model.
+25-09-21 18:42:59.352 : <epoch: 32, iter: 150,000, Val PSNR: 44.74dB, Val SSIM: 0.9905
+25-09-21 18:42:59.352 : Training samples this epoch: 8892
+25-09-21 18:42:59.352 : Validation samples this check: 2119
+25-09-21 18:42:59.353 : Saving PSNR checkpoint.
+25-09-21 18:52:32.634 : <epoch: 32, iter: 151,000, lr:6.250e-06> G_loss: 2.984e-03 
+25-09-21 19:02:08.372 : <epoch: 32, iter: 152,000, lr:6.250e-06> G_loss: 2.193e-03 
+25-09-21 19:11:43.894 : <epoch: 33, iter: 153,000, lr:6.250e-06> G_loss: 2.629e-03 
+25-09-21 19:21:20.147 : <epoch: 33, iter: 154,000, lr:6.250e-06> G_loss: 3.034e-03 
+25-09-21 19:30:56.335 : <epoch: 33, iter: 155,000, lr:6.250e-06> G_loss: 3.023e-03 
+25-09-21 19:30:56.335 : Saving the model.
+25-09-21 19:40:32.317 : <epoch: 33, iter: 156,000, lr:6.250e-06> G_loss: 2.417e-03 
+25-09-21 19:50:07.651 : <epoch: 33, iter: 157,000, lr:6.250e-06> G_loss: 2.816e-03 
+25-09-21 19:59:43.201 : <epoch: 34, iter: 158,000, lr:6.250e-06> G_loss: 2.129e-03 
+25-09-21 20:09:18.622 : <epoch: 34, iter: 159,000, lr:6.250e-06> G_loss: 2.410e-03 
+25-09-21 20:18:52.333 : <epoch: 34, iter: 160,000, lr:6.250e-06> G_loss: 2.855e-03 
+25-09-21 20:18:52.333 : Saving the model.
+25-09-21 20:22:11.688 : <epoch: 34, iter: 160,000, Val PSNR: 44.79dB, Val SSIM: 0.9906
+25-09-21 20:22:11.688 : Training samples this epoch: 10756
+25-09-21 20:22:11.688 : Validation samples this check: 2119
+25-09-21 20:22:11.689 : Saving PSNR checkpoint.
+25-09-21 20:31:44.136 : <epoch: 34, iter: 161,000, lr:6.250e-06> G_loss: 2.405e-03 
+25-09-21 20:41:19.093 : <epoch: 34, iter: 162,000, lr:6.250e-06> G_loss: 2.307e-03 
+25-09-21 20:50:55.190 : <epoch: 35, iter: 163,000, lr:6.250e-06> G_loss: 2.079e-03 
+25-09-21 21:00:29.983 : <epoch: 35, iter: 164,000, lr:6.250e-06> G_loss: 2.386e-03 
+25-09-21 21:10:05.840 : <epoch: 35, iter: 165,000, lr:6.250e-06> G_loss: 2.723e-03 
+25-09-21 21:10:05.840 : Saving the model.
+25-09-21 21:19:41.076 : <epoch: 35, iter: 166,000, lr:6.250e-06> G_loss: 2.723e-03 
+25-09-21 21:29:16.211 : <epoch: 36, iter: 167,000, lr:6.250e-06> G_loss: 3.092e-03 
+25-09-21 21:38:51.741 : <epoch: 36, iter: 168,000, lr:6.250e-06> G_loss: 2.572e-03 
+25-09-21 21:48:26.475 : <epoch: 36, iter: 169,000, lr:6.250e-06> G_loss: 2.481e-03 
+25-09-21 21:58:00.779 : <epoch: 36, iter: 170,000, lr:6.250e-06> G_loss: 2.434e-03 
+25-09-21 21:58:00.780 : Saving the model.
+25-09-21 22:01:20.330 : <epoch: 36, iter: 170,000, Val PSNR: 44.82dB, Val SSIM: 0.9906
+25-09-21 22:01:20.331 : Training samples this epoch: 12620
+25-09-21 22:01:20.331 : Validation samples this check: 2119
+25-09-21 22:01:20.331 : Saving PSNR checkpoint.
+25-09-21 22:10:52.965 : <epoch: 36, iter: 171,000, lr:6.250e-06> G_loss: 2.694e-03 
+25-09-21 22:20:27.887 : <epoch: 37, iter: 172,000, lr:6.250e-06> G_loss: 2.965e-03 
+25-09-21 22:30:03.221 : <epoch: 37, iter: 173,000, lr:6.250e-06> G_loss: 2.255e-03 
+25-09-21 22:39:38.825 : <epoch: 37, iter: 174,000, lr:6.250e-06> G_loss: 2.294e-03 
+25-09-21 22:49:14.709 : <epoch: 37, iter: 175,000, lr:6.250e-06> G_loss: 2.813e-03 
+25-09-21 22:49:14.710 : Saving the model.
+25-09-21 22:58:50.304 : <epoch: 37, iter: 176,000, lr:6.250e-06> G_loss: 2.583e-03 
+25-09-21 23:08:26.015 : <epoch: 38, iter: 177,000, lr:6.250e-06> G_loss: 2.147e-03 
+25-09-21 23:18:01.871 : <epoch: 38, iter: 178,000, lr:6.250e-06> G_loss: 2.393e-03 
+25-09-21 23:27:37.167 : <epoch: 38, iter: 179,000, lr:6.250e-06> G_loss: 2.774e-03 
+25-09-21 23:37:11.898 : <epoch: 38, iter: 180,000, lr:6.250e-06> G_loss: 2.352e-03 
+25-09-21 23:37:11.898 : Saving the model.
+25-09-21 23:40:28.268 : <epoch: 38, iter: 180,000, Val PSNR: 44.80dB, Val SSIM: 0.9907
+25-09-21 23:40:28.268 : Training samples this epoch: 14484
+25-09-21 23:40:28.269 : Validation samples this check: 2119
+25-09-21 23:40:28.269 : Saving PSNR checkpoint.
+25-09-21 23:50:02.361 : <epoch: 38, iter: 181,000, lr:6.250e-06> G_loss: 2.355e-03 
+25-09-21 23:59:37.906 : <epoch: 39, iter: 182,000, lr:6.250e-06> G_loss: 2.883e-03 
+25-09-22 00:09:11.761 : <epoch: 39, iter: 183,000, lr:6.250e-06> G_loss: 2.448e-03 
+25-09-22 00:18:47.315 : <epoch: 39, iter: 184,000, lr:6.250e-06> G_loss: 1.991e-03 
+25-09-22 00:28:22.727 : <epoch: 39, iter: 185,000, lr:6.250e-06> G_loss: 2.772e-03 
+25-09-22 00:28:22.728 : Saving the model.
+25-09-22 00:37:59.740 : <epoch: 40, iter: 186,000, lr:6.250e-06> G_loss: 3.075e-03 
+25-09-22 00:47:34.395 : <epoch: 40, iter: 187,000, lr:6.250e-06> G_loss: 2.371e-03 
+25-09-22 00:57:08.897 : <epoch: 40, iter: 188,000, lr:6.250e-06> G_loss: 2.309e-03 
+25-09-22 01:06:44.549 : <epoch: 40, iter: 189,000, lr:6.250e-06> G_loss: 2.770e-03 
+25-09-22 01:16:19.853 : <epoch: 40, iter: 190,000, lr:6.250e-06> G_loss: 2.715e-03 
+25-09-22 01:16:19.854 : Saving the model.
+25-09-22 01:19:34.690 : <epoch: 40, iter: 190,000, Val PSNR: 44.84dB, Val SSIM: 0.9907
+25-09-22 01:19:34.690 : Training samples this epoch: 16348
+25-09-22 01:19:34.691 : Validation samples this check: 2119
+25-09-22 01:19:34.691 : Saving PSNR checkpoint.
+25-09-22 01:29:08.879 : <epoch: 41, iter: 191,000, lr:6.250e-06> G_loss: 2.567e-03 
+25-09-22 01:38:45.179 : <epoch: 41, iter: 192,000, lr:6.250e-06> G_loss: 2.835e-03 
+25-09-22 01:48:21.084 : <epoch: 41, iter: 193,000, lr:6.250e-06> G_loss: 2.675e-03 
+25-09-22 01:57:57.239 : <epoch: 41, iter: 194,000, lr:6.250e-06> G_loss: 2.903e-03 
+25-09-22 02:07:32.639 : <epoch: 41, iter: 195,000, lr:6.250e-06> G_loss: 2.295e-03 
+25-09-22 02:07:32.639 : Saving the model.
+25-09-22 02:17:08.242 : <epoch: 42, iter: 196,000, lr:6.250e-06> G_loss: 2.514e-03 
+25-09-22 02:26:43.205 : <epoch: 42, iter: 197,000, lr:6.250e-06> G_loss: 2.479e-03 
+25-09-22 02:36:18.225 : <epoch: 42, iter: 198,000, lr:6.250e-06> G_loss: 2.768e-03 
+25-09-22 02:45:52.117 : <epoch: 42, iter: 199,000, lr:6.250e-06> G_loss: 2.392e-03 
+25-09-22 02:55:27.283 : <epoch: 42, iter: 200,000, lr:1.563e-06> G_loss: 2.095e-03 
+25-09-22 02:55:27.284 : Saving the model.
+25-09-22 02:58:45.548 : <epoch: 42, iter: 200,000, Val PSNR: 44.85dB, Val SSIM: 0.9907
+25-09-22 02:58:45.548 : Training samples this epoch: 18212
+25-09-22 02:58:45.548 : Validation samples this check: 2119
+25-09-22 02:58:45.549 : Saving PSNR checkpoint.
+25-09-22 03:08:19.706 : <epoch: 43, iter: 201,000, lr:3.125e-06> G_loss: 2.134e-03 
+25-09-22 03:17:55.672 : <epoch: 43, iter: 202,000, lr:3.125e-06> G_loss: 2.584e-03 
+25-09-22 03:27:31.737 : <epoch: 43, iter: 203,000, lr:3.125e-06> G_loss: 2.722e-03 
+25-09-22 03:37:07.341 : <epoch: 43, iter: 204,000, lr:3.125e-06> G_loss: 2.875e-03 
+25-09-22 03:46:42.904 : <epoch: 44, iter: 205,000, lr:3.125e-06> G_loss: 2.360e-03 
+25-09-22 03:46:42.907 : Saving the model.
+25-09-22 03:56:18.826 : <epoch: 44, iter: 206,000, lr:3.125e-06> G_loss: 2.452e-03 
+25-09-22 04:05:54.669 : <epoch: 44, iter: 207,000, lr:3.125e-06> G_loss: 2.803e-03 
+25-09-22 04:15:29.977 : <epoch: 44, iter: 208,000, lr:3.125e-06> G_loss: 2.914e-03 
+25-09-22 04:25:05.217 : <epoch: 44, iter: 209,000, lr:3.125e-06> G_loss: 2.891e-03 
+25-09-22 04:34:41.180 : <epoch: 45, iter: 210,000, lr:3.125e-06> G_loss: 2.805e-03 
+25-09-22 04:34:41.180 : Saving the model.
+25-09-22 04:37:54.794 : <epoch: 45, iter: 210,000, Val PSNR: 44.89dB, Val SSIM: 0.9907
+25-09-22 04:37:54.795 : Training samples this epoch: 1008
+25-09-22 04:37:54.795 : Validation samples this check: 2119
+25-09-22 04:37:54.795 : Saving PSNR checkpoint.
+25-09-22 04:47:29.219 : <epoch: 45, iter: 211,000, lr:3.125e-06> G_loss: 2.189e-03 
+25-09-22 04:57:05.265 : <epoch: 45, iter: 212,000, lr:3.125e-06> G_loss: 2.021e-03 
+25-09-22 05:06:41.523 : <epoch: 45, iter: 213,000, lr:3.125e-06> G_loss: 2.739e-03 
+25-09-22 05:16:17.858 : <epoch: 45, iter: 214,000, lr:3.125e-06> G_loss: 2.443e-03 
+25-09-22 05:25:53.689 : <epoch: 46, iter: 215,000, lr:3.125e-06> G_loss: 2.421e-03 
+25-09-22 05:25:53.689 : Saving the model.
+25-09-22 05:35:29.970 : <epoch: 46, iter: 216,000, lr:3.125e-06> G_loss: 2.759e-03 
+25-09-22 05:45:06.015 : <epoch: 46, iter: 217,000, lr:3.125e-06> G_loss: 2.372e-03 
+25-09-22 05:54:42.253 : <epoch: 46, iter: 218,000, lr:3.125e-06> G_loss: 2.418e-03 
+25-09-22 06:04:18.786 : <epoch: 46, iter: 219,000, lr:3.125e-06> G_loss: 3.056e-03 
+25-09-22 06:13:55.180 : <epoch: 47, iter: 220,000, lr:3.125e-06> G_loss: 2.788e-03 
+25-09-22 06:13:55.181 : Saving the model.
+25-09-22 06:17:10.791 : <epoch: 47, iter: 220,000, Val PSNR: 44.90dB, Val SSIM: 0.9908
+25-09-22 06:17:10.792 : Training samples this epoch: 2872
+25-09-22 06:17:10.792 : Validation samples this check: 2119
+25-09-22 06:17:10.793 : Saving PSNR checkpoint.
+25-09-22 06:26:44.579 : <epoch: 47, iter: 221,000, lr:3.125e-06> G_loss: 2.196e-03 
+25-09-22 06:36:20.354 : <epoch: 47, iter: 222,000, lr:3.125e-06> G_loss: 2.811e-03 
+25-09-22 06:45:56.695 : <epoch: 47, iter: 223,000, lr:3.125e-06> G_loss: 2.479e-03 
+25-09-22 06:55:33.370 : <epoch: 47, iter: 224,000, lr:3.125e-06> G_loss: 2.444e-03 
+25-09-22 07:05:09.755 : <epoch: 48, iter: 225,000, lr:3.125e-06> G_loss: 2.213e-03 
+25-09-22 07:05:09.756 : Saving the model.
+25-09-22 07:14:45.203 : <epoch: 48, iter: 226,000, lr:3.125e-06> G_loss: 2.661e-03 
+25-09-22 07:24:21.524 : <epoch: 48, iter: 227,000, lr:3.125e-06> G_loss: 2.555e-03 
+25-09-22 07:33:58.059 : <epoch: 48, iter: 228,000, lr:3.125e-06> G_loss: 2.596e-03 
+25-09-22 07:43:34.291 : <epoch: 49, iter: 229,000, lr:3.125e-06> G_loss: 2.588e-03 
+25-09-22 07:53:09.683 : <epoch: 49, iter: 230,000, lr:3.125e-06> G_loss: 2.216e-03 
+25-09-22 07:53:09.683 : Saving the model.
+25-09-22 07:56:29.899 : <epoch: 49, iter: 230,000, Val PSNR: 44.90dB, Val SSIM: 0.9908
+25-09-22 07:56:29.899 : Training samples this epoch: 4736
+25-09-22 07:56:29.899 : Validation samples this check: 2119
+25-09-22 07:56:29.900 : Saving PSNR checkpoint.
+25-09-22 08:06:04.638 : <epoch: 49, iter: 231,000, lr:3.125e-06> G_loss: 2.698e-03 
+25-09-22 08:15:41.524 : <epoch: 49, iter: 232,000, lr:3.125e-06> G_loss: 2.607e-03 
+25-09-22 08:25:17.278 : <epoch: 49, iter: 233,000, lr:3.125e-06> G_loss: 2.294e-03 
+25-09-22 08:34:53.662 : <epoch: 50, iter: 234,000, lr:3.125e-06> G_loss: 2.480e-03 
+25-09-22 08:44:29.350 : <epoch: 50, iter: 235,000, lr:3.125e-06> G_loss: 2.382e-03 
+25-09-22 08:44:29.350 : Saving the model.
+25-09-22 08:54:04.283 : <epoch: 50, iter: 236,000, lr:3.125e-06> G_loss: 2.527e-03 
+25-09-22 09:03:39.811 : <epoch: 50, iter: 237,000, lr:3.125e-06> G_loss: 2.384e-03 
+25-09-22 09:13:14.516 : <epoch: 50, iter: 238,000, lr:3.125e-06> G_loss: 2.508e-03 
+25-09-22 09:22:50.276 : <epoch: 51, iter: 239,000, lr:3.125e-06> G_loss: 2.650e-03 
+25-09-22 09:32:25.972 : <epoch: 51, iter: 240,000, lr:3.125e-06> G_loss: 2.406e-03 
+25-09-22 09:32:25.972 : Saving the model.
+25-09-22 09:35:39.283 : <epoch: 51, iter: 240,000, Val PSNR: 44.91dB, Val SSIM: 0.9908
+25-09-22 09:35:39.283 : Training samples this epoch: 6600
+25-09-22 09:35:39.283 : Validation samples this check: 2119
+25-09-22 09:35:39.284 : Saving PSNR checkpoint.
+25-09-22 09:45:14.647 : <epoch: 51, iter: 241,000, lr:3.125e-06> G_loss: 2.603e-03 
+25-09-22 09:54:52.009 : <epoch: 51, iter: 242,000, lr:3.125e-06> G_loss: 2.353e-03 
+25-09-22 10:04:29.725 : <epoch: 51, iter: 243,000, lr:3.125e-06> G_loss: 2.253e-03 
+25-09-22 10:14:06.699 : <epoch: 52, iter: 244,000, lr:3.125e-06> G_loss: 2.750e-03 
+25-09-22 10:23:43.646 : <epoch: 52, iter: 245,000, lr:3.125e-06> G_loss: 2.097e-03 
+25-09-22 10:23:43.646 : Saving the model.
+25-09-22 10:33:19.877 : <epoch: 52, iter: 246,000, lr:3.125e-06> G_loss: 2.260e-03 
+25-09-22 10:42:55.969 : <epoch: 52, iter: 247,000, lr:3.125e-06> G_loss: 2.721e-03 
+25-09-22 10:52:32.492 : <epoch: 53, iter: 248,000, lr:3.125e-06> G_loss: 2.479e-03 
+25-09-22 11:02:08.252 : <epoch: 53, iter: 249,000, lr:3.125e-06> G_loss: 2.352e-03 
+25-09-22 11:11:44.006 : <epoch: 53, iter: 250,000, lr:3.125e-06> G_loss: 2.528e-03 
+25-09-22 11:11:44.006 : Saving the model.
+25-09-22 11:14:55.583 : <epoch: 53, iter: 250,000, Val PSNR: 44.90dB, Val SSIM: 0.9908
+25-09-22 11:14:55.583 : Training samples this epoch: 8464
+25-09-22 11:14:55.583 : Validation samples this check: 2119
+25-09-22 11:14:55.584 : Saving PSNR checkpoint.
+25-09-22 11:24:32.163 : <epoch: 53, iter: 251,000, lr:3.125e-06> G_loss: 1.936e-03 
+25-09-22 11:34:09.090 : <epoch: 53, iter: 252,000, lr:3.125e-06> G_loss: 2.616e-03 
+25-09-22 11:43:47.004 : <epoch: 54, iter: 253,000, lr:3.125e-06> G_loss: 2.274e-03 
+25-09-22 11:53:25.133 : <epoch: 54, iter: 254,000, lr:3.125e-06> G_loss: 2.912e-03 
+25-09-22 12:03:03.667 : <epoch: 54, iter: 255,000, lr:3.125e-06> G_loss: 2.482e-03 
+25-09-22 12:03:03.668 : Saving the model.
+25-09-22 12:12:40.110 : <epoch: 54, iter: 256,000, lr:3.125e-06> G_loss: 2.493e-03 
+25-09-22 12:22:18.068 : <epoch: 54, iter: 257,000, lr:3.125e-06> G_loss: 2.097e-03 
+25-09-22 12:31:56.312 : <epoch: 55, iter: 258,000, lr:3.125e-06> G_loss: 2.715e-03 
+25-09-22 12:41:32.891 : <epoch: 55, iter: 259,000, lr:3.125e-06> G_loss: 2.723e-03 
+25-09-22 12:51:10.788 : <epoch: 55, iter: 260,000, lr:3.125e-06> G_loss: 2.772e-03 
+25-09-22 12:51:10.788 : Saving the model.
+25-09-22 12:54:26.650 : <epoch: 55, iter: 260,000, Val PSNR: 44.91dB, Val SSIM: 0.9908
+25-09-22 12:54:26.651 : Training samples this epoch: 10328
+25-09-22 12:54:26.651 : Validation samples this check: 2119
+25-09-22 12:54:26.651 : Saving PSNR checkpoint.
+25-09-22 13:04:03.812 : <epoch: 55, iter: 261,000, lr:3.125e-06> G_loss: 2.665e-03 
+25-09-22 13:13:41.257 : <epoch: 55, iter: 262,000, lr:3.125e-06> G_loss: 2.484e-03 
+25-09-22 13:23:20.718 : <epoch: 56, iter: 263,000, lr:3.125e-06> G_loss: 2.716e-03 
+25-09-22 13:32:59.910 : <epoch: 56, iter: 264,000, lr:3.125e-06> G_loss: 2.719e-03 
+25-09-22 13:42:38.742 : <epoch: 56, iter: 265,000, lr:3.125e-06> G_loss: 2.603e-03 
+25-09-22 13:42:38.743 : Saving the model.
+25-09-22 13:52:16.645 : <epoch: 56, iter: 266,000, lr:3.125e-06> G_loss: 2.206e-03 
+25-09-22 14:01:55.547 : <epoch: 57, iter: 267,000, lr:3.125e-06> G_loss: 2.254e-03 
+25-09-22 14:11:32.693 : <epoch: 57, iter: 268,000, lr:3.125e-06> G_loss: 2.428e-03 
+25-09-22 14:21:10.125 : <epoch: 57, iter: 269,000, lr:3.125e-06> G_loss: 2.104e-03 
+25-09-22 14:30:47.946 : <epoch: 57, iter: 270,000, lr:3.125e-06> G_loss: 2.816e-03 
+25-09-22 14:30:47.946 : Saving the model.
+25-09-22 14:34:07.056 : <epoch: 57, iter: 270,000, Val PSNR: 44.94dB, Val SSIM: 0.9908
+25-09-22 14:34:07.057 : Training samples this epoch: 12192
+25-09-22 14:34:07.057 : Validation samples this check: 2119
+25-09-22 14:34:07.058 : Saving PSNR checkpoint.
+25-09-22 14:43:44.260 : <epoch: 57, iter: 271,000, lr:3.125e-06> G_loss: 2.334e-03 
+25-09-22 14:53:19.811 : <epoch: 58, iter: 272,000, lr:3.125e-06> G_loss: 2.522e-03 
+25-09-22 15:02:56.961 : <epoch: 58, iter: 273,000, lr:3.125e-06> G_loss: 2.780e-03 
+25-09-22 15:12:34.596 : <epoch: 58, iter: 274,000, lr:3.125e-06> G_loss: 2.052e-03 
+25-09-22 15:22:12.960 : <epoch: 58, iter: 275,000, lr:3.125e-06> G_loss: 2.449e-03 
+25-09-22 15:22:12.960 : Saving the model.
+25-09-22 15:31:51.117 : <epoch: 58, iter: 276,000, lr:3.125e-06> G_loss: 3.319e-03 
+25-09-22 15:41:29.187 : <epoch: 59, iter: 277,000, lr:3.125e-06> G_loss: 2.356e-03 
+25-09-22 15:51:06.380 : <epoch: 59, iter: 278,000, lr:3.125e-06> G_loss: 2.184e-03 
+25-09-22 16:00:43.582 : <epoch: 59, iter: 279,000, lr:3.125e-06> G_loss: 2.451e-03 
+25-09-22 16:10:20.242 : <epoch: 59, iter: 280,000, lr:3.125e-06> G_loss: 2.446e-03 
+25-09-22 16:10:20.243 : Saving the model.
+25-09-22 16:13:40.144 : <epoch: 59, iter: 280,000, Val PSNR: 44.94dB, Val SSIM: 0.9908
+25-09-22 16:13:40.144 : Training samples this epoch: 14056
+25-09-22 16:13:40.144 : Validation samples this check: 2119
+25-09-22 16:13:40.144 : Saving PSNR checkpoint.
+25-09-22 16:23:17.005 : <epoch: 59, iter: 281,000, lr:3.125e-06> G_loss: 2.371e-03 
+25-09-22 16:32:55.662 : <epoch: 60, iter: 282,000, lr:3.125e-06> G_loss: 2.464e-03 
+25-09-22 16:42:34.101 : <epoch: 60, iter: 283,000, lr:3.125e-06> G_loss: 2.327e-03 
+25-09-22 16:52:11.708 : <epoch: 60, iter: 284,000, lr:3.125e-06> G_loss: 2.704e-03 
+25-09-22 17:01:49.665 : <epoch: 60, iter: 285,000, lr:3.125e-06> G_loss: 2.453e-03 
+25-09-22 17:01:49.666 : Saving the model.
+25-09-22 17:11:27.948 : <epoch: 60, iter: 286,000, lr:3.125e-06> G_loss: 2.239e-03 
+25-09-22 17:21:05.646 : <epoch: 61, iter: 287,000, lr:3.125e-06> G_loss: 2.486e-03 
+25-09-22 17:30:42.682 : <epoch: 61, iter: 288,000, lr:3.125e-06> G_loss: 3.011e-03 
+25-09-22 17:40:20.677 : <epoch: 61, iter: 289,000, lr:3.125e-06> G_loss: 2.448e-03 
+25-09-22 17:49:59.078 : <epoch: 61, iter: 290,000, lr:3.125e-06> G_loss: 2.121e-03 
+25-09-22 17:49:59.079 : Saving the model.
+25-09-22 17:53:15.415 : <epoch: 61, iter: 290,000, Val PSNR: 44.92dB, Val SSIM: 0.9909
+25-09-22 17:53:15.415 : Training samples this epoch: 15920
+25-09-22 17:53:15.415 : Validation samples this check: 2119
+25-09-22 17:53:15.416 : Saving PSNR checkpoint.
+25-09-22 18:02:52.023 : <epoch: 62, iter: 291,000, lr:3.125e-06> G_loss: 2.053e-03 
+25-09-22 18:12:29.759 : <epoch: 62, iter: 292,000, lr:3.125e-06> G_loss: 2.389e-03 
+25-09-22 18:22:07.009 : <epoch: 62, iter: 293,000, lr:3.125e-06> G_loss: 2.698e-03 
+25-09-22 18:31:43.875 : <epoch: 62, iter: 294,000, lr:3.125e-06> G_loss: 2.733e-03 
+25-09-22 18:41:20.864 : <epoch: 62, iter: 295,000, lr:3.125e-06> G_loss: 2.324e-03 
+25-09-22 18:41:20.864 : Saving the model.
+25-09-22 18:50:57.578 : <epoch: 63, iter: 296,000, lr:3.125e-06> G_loss: 2.348e-03 
+25-09-22 19:00:52.594 : <epoch: 63, iter: 297,000, lr:3.125e-06> G_loss: 2.566e-03 
+25-09-22 19:10:51.858 : <epoch: 63, iter: 298,000, lr:3.125e-06> G_loss: 2.233e-03 
+25-09-22 19:20:53.962 : <epoch: 63, iter: 299,000, lr:3.125e-06> G_loss: 2.146e-03 
+25-09-22 19:34:51.036 : <epoch: 63, iter: 300,000, lr:3.125e-06> G_loss: 2.404e-03 
+25-09-22 19:34:51.037 : Saving the model.
+25-09-22 19:44:01.307 : <epoch: 63, iter: 300,000, Val PSNR: 44.96dB, Val SSIM: 0.9909
+25-09-22 19:44:01.307 : Training samples this epoch: 17784
+25-09-22 19:44:01.308 : Validation samples this check: 2119
+25-09-22 19:44:01.309 : Saving PSNR checkpoint.
+25-09-22 19:55:38.401 : <epoch: 64, iter: 301,000, lr:3.125e-06> G_loss: 2.121e-03 
+25-09-22 20:05:45.649 : <epoch: 64, iter: 302,000, lr:3.125e-06> G_loss: 2.217e-03 
+25-09-22 20:21:28.086 : <epoch: 64, iter: 303,000, lr:3.125e-06> G_loss: 2.332e-03 
+25-09-22 20:37:05.903 : <epoch: 64, iter: 304,000, lr:3.125e-06> G_loss: 2.774e-03 
+25-09-22 20:53:01.746 : <epoch: 64, iter: 305,000, lr:3.125e-06> G_loss: 2.598e-03 
+25-09-22 20:53:01.754 : Saving the model.
